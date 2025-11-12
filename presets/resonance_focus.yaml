@@ -1,0 +1,45 @@
+# Resonance Focus Preset
+# Optimized for vocal resonance training
+
+name: "Resonance Focus"
+description: "Emphasize spectral balance and resonance quality"
+
+# Meters to display
+meters:
+  - SpectralTilt
+  - SCentroid
+  - F0Gauge
+  - CPP
+
+# Target ranges
+targets:
+  spectral_tilt_db_oct:
+    min: -6.0
+    max: -3.0
+    optimal: -4.5
+  
+  s_centroid_hz:
+    min: 4000
+    max: 6000
+    optimal: 5000
+  
+  cpp_db:
+    min: 6.0
+    optimal: 10.0
+  
+  f0_hz:
+    min: 170
+    max: 230
+
+# Visualization settings
+visualization:
+  heatmap:
+    enabled: true
+    metrics: ["SpectralTilt", "CPP"]
+  
+  spectral_display:
+    full_range: true
+    highlight_formants: true
+
+# Performance mode recommendation
+recommended_mode: "diagnostic"  # Need detailed spectral analysis

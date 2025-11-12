@@ -2,31 +2,37 @@
 
 ## Overview
 
-VoiVoiAnalyzer is a modular voice analysis system designed for local-only, low-latency voice training. The architecture is split into three main components with clear separation of concerns and dual licensing.
+VoiVoiAnalyzer is a local-first, real-time voice training application designed for conversation practice with strict privacy guarantees and performance targets. The architecture follows the YunoVoiceCoach specification with modular design and clear separation of concerns.
+
+## Design Principles
+
+1. **Privacy First**: No audio data leaves the device
+2. **Performance Guaranteed**: Strict latency targets (≤40/60/80ms)
+3. **Dry Signal Analysis**: Preprocessing never affects measurement
+4. **Modular Licensing**: MIT core + GPLv3 application
+5. **Real-time Optimized**: Lock-free communication, zero allocations in hot path
 
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   VoiVoiAnalyzer                        │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐  │
-│  │  yvc_app     │  │ yvc_offline  │  │  yvc_core   │  │
-│  │  (GPLv3)     │  │  (GPLv3)     │  │  (MIT)      │  │
-│  │              │  │              │  │             │  │
-│  │  GUI + JUCE  │  │  CLI Tool    │  │  DSP Core   │  │
-│  └──────┬───────┘  └──────┬───────┘  └─────────────┘  │
-│         │                 │                  ▲         │
-│         └─────────────────┴──────────────────┘         │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-                            │
-                    ┌───────▼────────┐
-                    │   KissFFT      │
-                    │   (3-clause    │
-                    │    BSD)        │
-                    └────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                      VoiVoiAnalyzer                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Audio I/O (WASAPI) ──→ RAM RingBuffer (float32 mono)      │
+│                               │                             │
+│                               ├──→ Analyzer (DRY signal)    │
+│                               │         ↓                   │
+│                               │    MetricsBus               │
+│                               │    (double-buffer)          │
+│                               │         ↓                   │
+│                               │        UI                   │
+│                               │    (60→45→30 FPS)          │
+│                               │                             │
+│                               └──→ PreprocessChain          │
+│                                    (monitor/record only)    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Components

@@ -13,6 +13,7 @@ set(YVC_CORE_SOURCES
     src/SpectralAnalyzer.cpp
     src/VADAnalyzer.cpp
     src/PerformanceMode.cpp
+    src/MetricsBus.cpp
 )
 
 # Core library headers
@@ -25,6 +26,10 @@ set(YVC_CORE_HEADERS
     include/yvc_core/SpectralAnalyzer.h
     include/yvc_core/VADAnalyzer.h
     include/yvc_core/PerformanceMode.h
+    include/yvc_core/MetricsBus.h
+    include/yvc_core/IAnalyzer.h
+    include/yvc_core/IPreprocessor.h
+    include/yvc_core/ICoachProvider.h
     include/yvc_core/Types.h
 )
 

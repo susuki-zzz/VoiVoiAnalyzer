@@ -1,0 +1,47 @@
+# Natural Conversation Preset
+# Optimized for everyday conversation practice
+
+name: "Natural Conversation"
+description: "Balanced metrics for natural speaking practice"
+
+# Meters to display
+meters:
+  - F0Gauge
+  - CPP
+  - HNR
+  - SpectralTilt
+  - SpeechRate
+  - Pause
+
+# Target ranges
+targets:
+  f0_hz:
+    min: 170
+    max: 230
+    optimal: 200
+  
+  cpp_db:
+    min: 5.0
+    optimal: 8.0
+  
+  hnr_db:
+    min: 10.0
+    optimal: 15.0
+  
+  speech_rate_sps:  # syllables per second
+    min: 3.0
+    max: 6.0
+    optimal: 4.5
+
+# Visualization settings
+visualization:
+  heatmap:
+    enabled: true
+    metrics: ["F0", "RMS"]
+  
+  f0_gauge:
+    show_target_band: true
+    color_coding: true
+
+# Performance mode recommendation
+recommended_mode: "normal"
