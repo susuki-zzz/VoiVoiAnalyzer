@@ -6,6 +6,7 @@ project(yvc_core VERSION 0.1.0 LANGUAGES CXX)
 # Core library sources
 set(YVC_CORE_SOURCES
     src/AudioBuffer.cpp
+    src/AnalyzerEngine.cpp
     src/F0Detector.cpp
     src/LevelAnalyzer.cpp
     src/CPPAnalyzer.cpp
@@ -14,6 +15,11 @@ set(YVC_CORE_SOURCES
     src/VADAnalyzer.cpp
     src/PerformanceMode.cpp
     src/MetricsBus.cpp
+    src/PreprocessChain.cpp
+    src/RamOnlyStorage.cpp
+    src/SessionPersistence.cpp
+    src/MetricsOnlyCoachProvider.cpp
+    src/ApiKeyVault.cpp
 )
 
 # Core library headers
@@ -31,6 +37,12 @@ set(YVC_CORE_HEADERS
     include/yvc_core/IPreprocessor.h
     include/yvc_core/ICoachProvider.h
     include/yvc_core/Types.h
+    include/yvc_core/PreprocessChain.h
+    include/yvc_core/AnalyzerEngine.h
+    include/yvc_core/RamOnlyStorage.h
+    include/yvc_core/SessionPersistence.h
+    include/yvc_core/MetricsOnlyCoachProvider.h
+    include/yvc_core/ApiKeyVault.h
 )
 
 # Create library
@@ -54,6 +66,7 @@ target_link_libraries(yvc_core
 # Windows-specific settings
 if(WIN32)
     target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(yvc_core PRIVATE Crypt32)
 endif()
 
 # Compiler warnings
@@ -62,3 +75,9 @@ if(MSVC)
 else()
     target_compile_options(yvc_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+enable_testing()
+
+add_executable(yvc_core_ram_only_tests tests/RamOnlyStorageTests.cpp)
+target_link_libraries(yvc_core_ram_only_tests PRIVATE yvc_core)
+add_test(NAME RamOnlyStorageNoDisk COMMAND yvc_core_ram_only_tests)
