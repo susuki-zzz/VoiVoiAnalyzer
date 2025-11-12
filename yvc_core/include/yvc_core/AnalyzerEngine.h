@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "AudioBuffer.h"
 #include "CPPAnalyzer.h"
 #include "F0Detector.h"
@@ -48,6 +50,10 @@ private:
     PerformanceModeConfig performance_config_;
     uint32_t fft_size_;
     uint32_t hop_size_;
+
+    uint64_t processed_samples_ = 0;
+    double stream_start_timestamp_ = 0.0;
+    bool stream_timestamp_initialized_ = false;
 };
 
 } // namespace yvc
