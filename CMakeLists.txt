@@ -1,11 +1,27 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(VoiVoiAnalyzer VERSION 0.1.0 LANGUAGES CXX)
+project(VoiVoiAnalyzer VERSION 0.1.0 LANGUAGES CXX C)
 
 # C++20 requirement
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# C99 for KissFFT
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+
+# Use dynamic runtime library for MSVC
+if(MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    # Ensure we use /MD or /MDd
+    add_compile_options(
+        $<$<CONFIG:Debug>:/MDd>
+        $<$<CONFIG:Release>:/MD>
+        $<$<CONFIG:RelWithDebInfo>:/MD>
+        $<$<CONFIG:MinSizeRel>:/MD>
+    )
+endif()
 
 # Build type
 if(NOT CMAKE_BUILD_TYPE)

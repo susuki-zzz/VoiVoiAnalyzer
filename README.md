@@ -223,6 +223,39 @@ The application automatically degrades rendering FPS when needed to maintain aud
 
 Audio processing latency is always maintained within mode targets.
 
+## Logger Key Features
+
+### 1. **Thread-Safe**
+- Multiple threads can log simultaneously without corruption
+- Lock-based synchronization with minimal contention
+- Async-safe for real-time audio threads (with proper configuration)
+
+### 2. **Performance Optimized**
+- Minimal overhead when logging is disabled
+- Compile-time log level filtering
+- Optional buffering for file output
+- Automatic file rotation
+
+### 3. **Privacy-First**
+- **NEVER logs audio data** (enforced in production builds)
+- Only logs metrics and metadata
+- Configurable privacy settings
+- Compliance with VoiVoi's privacy architecture
+
+### 4. **Flexible Configuration**
+- Multiple log levels (TRACE, DEBUG, INFO, WARN, ERROR, FATAL)
+- Console and file output
+- Customizable format (timestamp, thread ID, source location)
+- Runtime configuration changes
+
+### 5. **Developer-Friendly**
+- Macro-based API for easy usage
+- Stream-style logging support
+- Scoped timers for performance profiling
+- Formatted string support (printf-style)
+
+See [Logger Documentation](docs/LOGGER.md) for detailed usage guide.
+
 ## License
 
 - **yvc_core**: MIT License (permissive, use in any project)

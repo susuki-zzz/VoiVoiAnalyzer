@@ -9,12 +9,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
 #include <limits>
 #include <sstream>
 #include <vector>
 
 #include <yvc_core/PerformanceMode.h>
+#include <yvc_core/Logger.h>
 
 namespace {
 
@@ -64,7 +64,7 @@ void FileProcessor::initializeAnalyzers(const AudioConfig& config) {
 }
 
 bool FileProcessor::processFile(const std::string& input_path, const std::string& output_path) {
-    std::cout << "Processing file: " << input_path << std::endl;
+    LOG_INFOF("Processing file: %s", input_path.c_str());
 
     results_.clear();
 
@@ -75,14 +75,14 @@ bool FileProcessor::processFile(const std::string& input_path, const std::string
     }
 
     if (audio_samples.empty() || sample_rate == 0) {
-        std::cerr << "No audio samples decoded from: " << input_path << std::endl;
+        LOG_ERRORF("No audio samples decoded from: %s", input_path.c_str());
         return false;
     }
 
     constexpr double kMaxDurationSeconds = 3.0 * 60.0 * 60.0;
     const size_t max_samples = static_cast<size_t>(kMaxDurationSeconds * static_cast<double>(sample_rate));
     if (audio_samples.size() > max_samples) {
-        std::cout << "Input exceeds 3 hour limit. Truncating to " << kMaxDurationSeconds << " seconds." << std::endl;
+        LOG_WARNF("Input exceeds 3 hour limit. Truncating to %.1f seconds.", kMaxDurationSeconds);
         audio_samples.resize(max_samples);
     }
 
@@ -101,7 +101,7 @@ bool FileProcessor::processFile(const std::string& input_path, const std::string
     const size_t step = chunk_samples > overlap_samples ? (chunk_samples - overlap_samples) : chunk_samples;
 
     if (chunk_samples == 0 || step == 0) {
-        std::cerr << "Invalid chunk configuration for sample rate: " << sample_rate << std::endl;
+        LOG_ERRORF("Invalid chunk configuration for sample rate: %d", sample_rate);
         return false;
     }
 
@@ -178,7 +178,7 @@ bool FileProcessor::writeResults(const std::string& output_path) {
 
     std::ofstream out(base_path);
     if (!out.is_open()) {
-        std::cerr << "Failed to open output file: " << output_path << std::endl;
+        LOG_ERRORF("Failed to open output file: %s", output_path.c_str());
         return false;
     }
     
@@ -206,14 +206,14 @@ bool FileProcessor::writeResults(const std::string& output_path) {
     }
 
     out.close();
-    std::cout << "Results written to: " << base_path << std::endl;
+    LOG_INFOF("Results written to: %s", base_path.string().c_str());
     return true;
 }
 
 bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate) {
     std::ifstream in(input_path, std::ios::binary);
     if (!in.is_open()) {
-        std::cerr << "Failed to open input file: " << input_path << std::endl;
+        LOG_ERRORF("Failed to open input file: %s", input_path.c_str());
         return false;
     }
 
@@ -229,7 +229,7 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
     in.read(reinterpret_cast<char*>(&chunk_size), sizeof(chunk_size));
     in.read(format.data(), 4);
     if (!in || readFourCC(chunk_id) != "RIFF" || readFourCC(format) != "WAVE") {
-        std::cerr << "Unsupported or corrupt WAV file: " << input_path << std::endl;
+        LOG_ERRORF("Unsupported or corrupt WAV file: %s", input_path.c_str());
         return false;
     }
 
@@ -253,7 +253,7 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
         if (readFourCC(chunk_id) == "fmt ") {
             std::vector<char> fmt_data(chunk_size);
             if (!in.read(fmt_data.data(), fmt_data.size())) {
-                std::cerr << "Failed to read fmt chunk" << std::endl;
+                LOG_ERROR("Failed to read fmt chunk");
                 return false;
             }
 
@@ -273,7 +273,7 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
         } else if (readFourCC(chunk_id) == "data") {
             data_chunk.resize(chunk_size);
             if (!in.read(data_chunk.data(), data_chunk.size())) {
-                std::cerr << "Failed to read data chunk" << std::endl;
+                LOG_ERROR("Failed to read data chunk");
                 return false;
             }
             data_found = true;
@@ -287,17 +287,17 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
     }
 
     if (!fmt_found || !data_found) {
-        std::cerr << "Incomplete WAV file: " << input_path << std::endl;
+        LOG_ERRORF("Incomplete WAV file: %s", input_path.c_str());
         return false;
     }
 
     if (num_channels == 0 || block_align == 0) {
-        std::cerr << "Invalid WAV channel configuration" << std::endl;
+        LOG_ERROR("Invalid WAV channel configuration");
         return false;
     }
 
     if (audio_format != 1 && audio_format != 3) {
-        std::cerr << "Unsupported WAV encoding (only PCM and IEEE float supported)" << std::endl;
+        LOG_ERROR("Unsupported WAV encoding (only PCM and IEEE float supported)");
         return false;
     }
 
@@ -344,7 +344,7 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
                 data_ptr += sizeof(value);
                 sample_value = static_cast<double>(value) * int32_scale;
             } else {
-                std::cerr << "Unsupported bits per sample: " << bits_per_sample << std::endl;
+                LOG_ERRORF("Unsupported bits per sample: %d", bits_per_sample);
                 return false;
             }
 
@@ -426,7 +426,7 @@ bool FileProcessor::writeSummary(const std::string& output_path, const SummarySt
 
     std::ofstream out(base_path);
     if (!out.is_open()) {
-        std::cerr << "Failed to open summary file: " << base_path << std::endl;
+        LOG_ERRORF("Failed to open summary file: %s", base_path.string().c_str());
         return false;
     }
 
@@ -448,7 +448,7 @@ bool FileProcessor::writeSummary(const std::string& output_path, const SummarySt
     out << "  \"voice_activity_ratio\": " << summary.voice_activity_ratio << "\n";
     out << "}\n";
 
-    std::cout << "Summary written to: " << base_path << std::endl;
+    LOG_INFOF("Summary written to: %s", base_path.string().c_str());
     return true;
 }
 
@@ -496,7 +496,7 @@ bool FileProcessor::writeAnomalies(const std::string& output_path, const std::ve
 
     std::ofstream out(base_path);
     if (!out.is_open()) {
-        std::cerr << "Failed to open anomalies file: " << base_path << std::endl;
+        LOG_ERRORF("Failed to open anomalies file: %s", base_path.string().c_str());
         return false;
     }
 
@@ -519,7 +519,7 @@ bool FileProcessor::writeAnomalies(const std::string& output_path, const std::ve
     out << "  ]\n";
     out << "}\n";
 
-    std::cout << "Anomalies written to: " << base_path << std::endl;
+    LOG_INFOF("Anomalies written to: %s", base_path.string().c_str());
     return true;
 }
 
@@ -550,7 +550,7 @@ bool FileProcessor::writeHeatmap(const std::string& output_path, const std::vect
 
     std::ofstream out(base_path);
     if (!out.is_open()) {
-        std::cerr << "Failed to open heatmap file: " << base_path << std::endl;
+        LOG_ERRORF("Failed to open heatmap file: %s", base_path.string().c_str());
         return false;
     }
 
@@ -565,7 +565,7 @@ bool FileProcessor::writeHeatmap(const std::string& output_path, const std::vect
             << point.cpp << "\n";
     }
 
-    std::cout << "Heatmap written to: " << base_path << std::endl;
+    LOG_INFOF("Heatmap written to: %s", base_path.string().c_str());
     return true;
 }
 

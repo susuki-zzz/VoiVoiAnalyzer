@@ -22,7 +22,18 @@ target_include_directories(kissfft
         $<INSTALL_INTERFACE:include>
 )
 
+# Ensure C99 standard
+set_target_properties(kissfft PROPERTIES
+    C_STANDARD 99
+    C_STANDARD_REQUIRED ON
+)
+
 # Platform-specific settings
 if(MSVC)
     target_compile_definitions(kissfft PRIVATE _CRT_SECURE_NO_WARNINGS)
+    # Use MultiThreadedDebugDLL runtime for debug builds
+    # Use MultiThreadedDLL runtime for release builds
+    set_target_properties(kissfft PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
 endif()

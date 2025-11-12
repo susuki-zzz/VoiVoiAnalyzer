@@ -54,4 +54,8 @@ endif()
 # Windows-specific settings
 if(WIN32)
     target_compile_definitions(yvc_offline PRIVATE _CRT_SECURE_NO_WARNINGS)
+    # Ensure consistent runtime library
+    set_target_properties(yvc_offline PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
 endif()

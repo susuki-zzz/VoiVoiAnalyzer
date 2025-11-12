@@ -2,6 +2,7 @@
 // License: GPLv3
 
 #include "FileProcessor.h"
+#include <yvc_core/Logger.h>
 #include <iostream>
 #include <string>
 
@@ -21,6 +22,32 @@ void printUsage() {
 }
 
 int main(int argc, char* argv[]) {
+    // Initialize logger for offline tool
+    auto& logger = yvc::Logger::getInstance();
+    yvc::LoggerConfig logConfig;
+    
+    #ifdef NDEBUG
+    // Release build - minimal logging to console
+    logConfig.minLevel = yvc::LogLevel::INFO;
+    logConfig.enableFile = false;
+    logConfig.enableConsole = true;
+    logConfig.includeTimestamp = false;
+    logConfig.includeThreadId = false;
+    logConfig.includeSourceLocation = false;
+    #else
+    // Debug build - verbose logging
+    logConfig.minLevel = yvc::LogLevel::DEBUG;
+    logConfig.enableFile = true;
+    logConfig.enableConsole = true;
+    logConfig.logFilePath = "voivoi_offline_debug.log";
+    logConfig.maxFileSize = 5 * 1024 * 1024;  // 5MB
+    logConfig.includeTimestamp = true;
+    logConfig.includeThreadId = false;
+    logConfig.includeSourceLocation = true;
+    #endif
+    
+    logger.configure(logConfig);
+    
     if (argc < 3) {
         printUsage();
         return 1;
@@ -47,7 +74,7 @@ int main(int argc, char* argv[]) {
                 } else if (mode_str == "diagnostic") {
                     mode = yvc::PerformanceMode::Diagnostic;
                 } else {
-                    std::cerr << "Unknown mode: " << mode_str << std::endl;
+                    LOG_ERRORF("Unknown mode: %s", mode_str.c_str());
                     return 1;
                 }
             }
@@ -59,7 +86,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (input_file.empty() || output_file.empty()) {
-        std::cerr << "Error: Input and output files must be specified" << std::endl;
+        LOG_ERROR("Error: Input and output files must be specified");
         printUsage();
         return 1;
     }
@@ -69,10 +96,12 @@ int main(int argc, char* argv[]) {
     processor.setMode(mode);
     
     if (!processor.processFile(input_file, output_file)) {
-        std::cerr << "Error: Failed to process file" << std::endl;
+        LOG_ERROR("Error: Failed to process file");
+        logger.shutdown();
         return 1;
     }
     
-    std::cout << "Analysis complete!" << std::endl;
+    LOG_INFO("Analysis complete!");
+    logger.shutdown();
     return 0;
 }

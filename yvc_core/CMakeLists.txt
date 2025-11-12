@@ -22,7 +22,7 @@ set(YVC_CORE_SOURCES
     src/SessionPersistence.cpp
     src/MetricsOnlyCoachProvider.cpp
     src/ApiKeyVault.cpp
-    src/AnalyzerEngine.cpp
+    src/Logger.cpp
 )
 
 # Core library headers
@@ -42,15 +42,18 @@ set(YVC_CORE_HEADERS
     include/yvc_core/ICoachProvider.h
     include/yvc_core/Types.h
     include/yvc_core/PreprocessChain.h
-    include/yvc_core/AnalyzerEngine.h
     include/yvc_core/RamOnlyStorage.h
     include/yvc_core/SessionPersistence.h
     include/yvc_core/MetricsOnlyCoachProvider.h
     include/yvc_core/ApiKeyVault.h
+    include/yvc_core/Logger.h
 )
 
 # Create library
 add_library(yvc_core STATIC ${YVC_CORE_SOURCES} ${YVC_CORE_HEADERS})
+
+# Threads (needed for std::thread on non-Windows platforms)
+find_package(Threads REQUIRED)
 
 # Include directories
 target_include_directories(yvc_core
@@ -65,6 +68,7 @@ target_include_directories(yvc_core
 target_link_libraries(yvc_core
     PUBLIC
         kissfft
+        Threads::Threads
 )
 
 # Unit tests
@@ -79,12 +83,28 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME yvc_core_tests COMMAND yvc_core_tests)
+    
+    # Logger examples/tests
+    add_executable(yvc_logger_examples
+        tests/LoggerExamples.cpp
+    )
+    
+    target_link_libraries(yvc_logger_examples
+        PRIVATE
+            yvc_core
+    )
+    
+    # Not added to CTest as it's more of an example program
 endif()
 
 # Windows-specific settings
 if(WIN32)
     target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(yvc_core PRIVATE Crypt32)
+    # Ensure consistent runtime library
+    set_target_properties(yvc_core PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
 endif()
 
 # Compiler warnings
@@ -97,5 +117,6 @@ endif()
 enable_testing()
 
 add_executable(yvc_core_ram_only_tests tests/RamOnlyStorageTests.cpp)
+# Link Threads in tests transitively via yvc_core
 target_link_libraries(yvc_core_ram_only_tests PRIVATE yvc_core)
 add_test(NAME RamOnlyStorageNoDisk COMMAND yvc_core_ram_only_tests)
