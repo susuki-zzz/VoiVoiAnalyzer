@@ -43,11 +43,25 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus)
     statusBar_.setColour(juce::Label::textColourId, juce::Colours::lightgrey);
     addAndMakeVisible(statusBar_);
 
+    fpsIndicator_.setJustificationType(juce::Justification::centred);
+    fpsIndicator_.setFont(juce::Font(14.0f, juce::Font::bold));
+    fpsIndicator_.setColour(juce::Label::textColourId, juce::Colours::lightskyblue);
+    fpsIndicator_.setInterceptsMouseClicks(false, false);
+    addAndMakeVisible(fpsIndicator_);
+
+    degradationNotice_.setJustificationType(juce::Justification::centredLeft);
+    degradationNotice_.setColour(juce::Label::textColourId, juce::Colours::orange);
+    degradationNotice_.setInterceptsMouseClicks(false, false);
+    degradationNotice_.setVisible(false);
+    addAndMakeVisible(degradationNotice_);
+
     addAndMakeVisible(metricsDisplay_);
+    addAndMakeVisible(heatmapDisplay_);
 
     applyPreset(presetManager_.getActivePreset());
     refreshMetrics();
     metricsDisplay_.updateMetrics(currentMetrics_);
+    heatmapDisplay_.appendSample(currentMetrics_);
     updateStatusBar();
     recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
 
@@ -82,13 +96,21 @@ void MainComponent::resized() {
     auto header = area.removeFromTop(48);
     presetSelector_.setBounds(header.removeFromLeft(220));
     header.removeFromLeft(12);
+
     settingsButton_.setBounds(header.removeFromRight(120));
     header.removeFromRight(12);
+
+    fpsIndicator_.setBounds(header.removeFromRight(140));
+    header.removeFromRight(8);
     presetDescription_.setBounds(header);
 
     auto statusArea = area.removeFromBottom(28);
+    auto degradationArea = statusArea.removeFromLeft(240);
+    degradationNotice_.setBounds(degradationArea.reduced(4, 0));
     statusBar_.setBounds(statusArea);
 
+    auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.35f));
+    heatmapDisplay_.setBounds(heatmapArea);
     metricsDisplay_.setBounds(area);
 }
 
@@ -96,6 +118,13 @@ void MainComponent::timerCallback() {
     refreshMetrics();
     updateStatusBar();
     metricsDisplay_.updateMetrics(currentMetrics_);
+    heatmapDisplay_.appendSample(currentMetrics_);
+
+    auto now = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
+    if (degradationNoticeExpiryMs_ > 0 && now > degradationNoticeExpiryMs_) {
+        degradationNotice_.setVisible(false);
+        degradationNoticeExpiryMs_ = 0;
+    }
     repaint();
 }
 
@@ -164,6 +193,10 @@ void MainComponent::evaluateFrameBudget() {
         if (averageFrameMs > targetFrameMs / kDegradeThreshold && frameBudgetIndex_ + 1 < frameBudgets_.size()) {
             frameBudgetIndex_++;
             configureTimerForCurrentBudget();
+            juce::String notice = "Auto limited to " + juce::String(frameBudgets_[frameBudgetIndex_]) + " FPS";
+            degradationNotice_.setText(notice, juce::dontSendNotification);
+            degradationNotice_.setVisible(true);
+            degradationNoticeExpiryMs_ = lastPaintTimestampMs_ + 4000;
         }
         accumulatedFrameTimeMs_ = 0.0;
         accumulatedFrames_ = 0;
@@ -175,6 +208,11 @@ void MainComponent::configureTimerForCurrentBudget() {
     stopTimer();
     auto currentBudget = frameBudgets_[frameBudgetIndex_];
     startTimerHz(currentBudget);
+    fpsIndicator_.setText("FPS Target: " + juce::String(currentBudget), juce::dontSendNotification);
+    if (frameBudgetIndex_ == 0) {
+        degradationNotice_.setVisible(false);
+        degradationNoticeExpiryMs_ = 0;
+    }
 }
 
 } // namespace yvc::app

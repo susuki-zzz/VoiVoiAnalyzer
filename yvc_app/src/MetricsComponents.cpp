@@ -4,6 +4,7 @@
 #include "MetricsComponents.h"
 
 #include <cmath>
+#include <limits>
 
 namespace yvc::app {
 
@@ -250,6 +251,95 @@ std::unique_ptr<MetricComponent> MetricsDisplayComponent::createComponentFor(Met
         break;
     }
     return nullptr;
+}
+
+HeatmapComponent::HeatmapComponent() {
+    setName("Heatmaps");
+    setOpaque(false);
+}
+
+void HeatmapComponent::appendSample(const yvc::AnalysisResults& results) {
+    auto pushSample = [this](std::deque<float>& buffer, float value) {
+        buffer.push_back(value);
+        while (static_cast<int>(buffer.size()) > maxSamples_)
+            buffer.pop_front();
+    };
+
+    pushSample(f0History_, results.f0_valid ? results.f0 : std::numeric_limits<float>::quiet_NaN());
+    pushSample(rmsHistory_, std::isfinite(results.rms) ? results.rms : std::numeric_limits<float>::quiet_NaN());
+
+    repaint();
+}
+
+void HeatmapComponent::paint(juce::Graphics& g) {
+    auto bounds = getLocalBounds().toFloat().reduced(6.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.4f));
+    g.fillRoundedRectangle(bounds, 10.0f);
+
+    g.setColour(juce::Colours::white.withAlpha(0.06f));
+    g.drawRoundedRectangle(bounds, 10.0f, 1.5f);
+
+    auto top = bounds.removeFromTop(bounds.getHeight() * 0.5f).reduced(6.0f);
+    auto bottom = bounds.reduced(6.0f);
+
+    drawHeatmap(g, top, f0History_, 60.0f, 400.0f, "F0 Heatmap", "Hz");
+    drawHeatmap(g, bottom, rmsHistory_, -60.0f, 6.0f, "Level Heatmap", "dBFS");
+}
+
+void HeatmapComponent::resized() {}
+
+void HeatmapComponent::drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples,
+                                   float minValue, float maxValue, const juce::String& label, const juce::String& unit) {
+    g.setColour(juce::Colours::darkgrey.darker(0.4f));
+    g.fillRoundedRectangle(area, 8.0f);
+
+    g.setColour(juce::Colours::white.withAlpha(0.08f));
+    g.drawRoundedRectangle(area, 8.0f, 1.0f);
+
+    auto labelArea = area.removeFromTop(24.0f);
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(15.0f, juce::Font::bold));
+    g.drawText(label, labelArea, juce::Justification::centredLeft);
+
+    g.setFont(juce::Font(12.0f));
+    g.setColour(juce::Colours::lightgrey);
+    g.drawText(unit, labelArea, juce::Justification::centredRight);
+
+    auto heatmapArea = area.reduced(10.0f, 8.0f);
+    if (samples.empty()) {
+        g.setColour(juce::Colours::darkslategrey);
+        g.fillRoundedRectangle(heatmapArea, 6.0f);
+        g.setColour(juce::Colours::lightgrey);
+        g.setFont(juce::Font(12.0f));
+        g.drawText("Awaiting data", heatmapArea, juce::Justification::centred);
+        return;
+    }
+
+    const float columnWidth = heatmapArea.getWidth() / juce::jmax<int>(static_cast<int>(samples.size()), 1);
+    float x = heatmapArea.getRight() - columnWidth;
+
+    for (auto it = samples.rbegin(); it != samples.rend(); ++it) {
+        float value = *it;
+        juce::Colour colour = juce::Colours::darkslategrey;
+        if (std::isfinite(value)) {
+            float normalised = juce::jlimit(0.0f, 1.0f, (value - minValue) / (maxValue - minValue));
+            float hue = juce::jmap(normalised, 0.66f, 0.0f);
+            colour = juce::Colour::fromHSV(hue, 0.85f, 0.95f, 0.95f);
+        } else {
+            colour = juce::Colours::darkslategrey.darker(0.4f);
+        }
+
+        auto column = juce::Rectangle<float>(x, heatmapArea.getY(), columnWidth + 1.0f, heatmapArea.getHeight());
+        g.setColour(colour);
+        g.fillRect(column);
+
+        x -= columnWidth;
+        if (x < heatmapArea.getX() - columnWidth)
+            break;
+    }
+
+    g.setColour(juce::Colours::white.withAlpha(0.1f));
+    g.drawRoundedRectangle(heatmapArea, 6.0f, 1.0f);
 }
 
 } // namespace yvc::app

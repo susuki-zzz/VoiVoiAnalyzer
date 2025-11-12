@@ -241,12 +241,36 @@ Contributions are welcome! Please ensure:
 
 ## Roadmap
 
-- [ ] Complete JUCE GUI implementation
-- [x] Audio file import/export (offline tooling)
-- [ ] Advanced visualization options
-- [ ] Preset sharing (metrics only)
-- [ ] Multi-language support
-- [ ] macOS and Linux support
+### Complete JUCE GUI implementation
+- [ ] Finalize layout for dashboard views (F0 gauge, heatmaps, status bar)
+- [ ] Wire metrics bus updates into JUCE components with double-buffered handoff
+- [ ] Implement preset selector + settings drawer interactions
+- [ ] Add FPS limiter indicator and auto-degradation messaging hooks
+
+### Audio file import/export (offline tooling)
+- [x] Batch processing pipeline for 30s chunks with 1s overlap
+- [x] Metrics CSV + session summary JSON serialization
+- [x] Heatmap/anomaly report generation aligned with real-time analyzer
+
+### Advanced visualization options
+- [ ] Expand heatmap controls (zoom, time-range scrubbing, resolution toggle)
+- [ ] Add comparative session overlays for metrics panels
+- [ ] Provide exportable snapshot images with annotations
+
+### Preset sharing (metrics only)
+- [ ] Define shareable preset schema (metrics, targets, layout metadata)
+- [ ] Implement local preset library with import/export dialogs
+- [ ] Add validation to ensure no raw audio or identifiable data is included
+
+### Multi-language support
+- [ ] Externalize UI strings with UTF-8 resource bundles
+- [ ] Provide Japanese + English translations for MVP flows
+- [ ] Add runtime language switcher with persistence
+
+### macOS and Linux support
+- [ ] Abstract audio backend to support CoreAudio/ALSA with feature parity
+- [ ] Integrate platform build presets + CI smoke builds
+- [ ] Validate performance targets on representative hardware
 
 ## Support
 
