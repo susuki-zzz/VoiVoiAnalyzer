@@ -44,4 +44,24 @@ enum class PreprocessTarget {
     Record = 0x02    // Apply to recording output
 };
 
+constexpr int toMask(PreprocessTarget target) {
+    return static_cast<int>(target);
+}
+
+constexpr PreprocessTarget operator|(PreprocessTarget lhs, PreprocessTarget rhs) {
+    return static_cast<PreprocessTarget>(toMask(lhs) | toMask(rhs));
+}
+
+constexpr PreprocessTarget operator&(PreprocessTarget lhs, PreprocessTarget rhs) {
+    return static_cast<PreprocessTarget>(toMask(lhs) & toMask(rhs));
+}
+
+constexpr bool any(PreprocessTarget value) {
+    return toMask(value) != 0;
+}
+
+constexpr bool matches(PreprocessTarget configured, PreprocessTarget query) {
+    return any(configured & query);
+}
+
 } // namespace yvc

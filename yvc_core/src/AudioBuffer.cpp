@@ -28,9 +28,42 @@ bool AudioBuffer::hasEnoughSamples(size_t required_samples) const {
     return buffer_.size() >= required_samples;
 }
 
+void AudioBuffer::consumeSamples(size_t num_samples) {
+    if (num_samples == 0 || buffer_.empty()) {
+        return;
+    }
+
+    if (num_samples >= buffer_.size()) {
+        clear();
+        return;
+    }
+
+    buffer_.erase(buffer_.begin(), buffer_.begin() + num_samples);
+}
+
 void AudioBuffer::clear() {
     buffer_.clear();
     write_pos_ = 0;
+    latency_compensation_.clear();
+}
+
+void AudioBuffer::setLatencyCompensation(PreprocessTarget target, size_t samples) {
+    if (!any(target)) {
+        return;
+    }
+    latency_compensation_[target] = samples;
+}
+
+size_t AudioBuffer::getLatencyCompensation(PreprocessTarget target) const {
+    auto it = latency_compensation_.find(target);
+    if (it == latency_compensation_.end()) {
+        return 0;
+    }
+    return it->second;
+}
+
+void AudioBuffer::clearLatencyCompensation() {
+    latency_compensation_.clear();
 }
 
 } // namespace yvc

@@ -39,4 +39,24 @@ bool PerformanceModeConfig::isFeatureEnabled(const std::string& feature) const {
     return true;
 }
 
+AudioConfig PerformanceModeConfig::applyToConfig(const AudioConfig& base_config, PerformanceMode mode) {
+    AudioConfig config = base_config;
+    config.mode = mode;
+
+    PerformanceModeConfig mode_config(mode);
+    config.fft_size = mode_config.getFFTSize();
+    config.hop_size = mode_config.getHopSize();
+
+    // Ensure the streaming buffer can at least fit one hop
+    if (config.buffer_size < config.hop_size) {
+        config.buffer_size = config.hop_size;
+    }
+
+    return config;
+}
+
+AudioConfig configureForPerformanceMode(const AudioConfig& config) {
+    return PerformanceModeConfig::applyToConfig(config, config.mode);
+}
+
 } // namespace yvc
