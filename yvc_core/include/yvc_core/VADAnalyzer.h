@@ -5,7 +5,6 @@
 #pragma once
 
 #include "Types.h"
-#include <vector>
 #include <deque>
 
 namespace yvc {
@@ -33,11 +32,11 @@ private:
     float vad_threshold_ = 0.01f;
     
     // State tracking for speech rate
-    std::deque<double> voice_activity_history_;
     std::deque<double> syllable_times_;
+    bool previous_voice_active_ = false;
     double total_time_ = 0.0;
     double speech_time_ = 0.0;
-    
+
     // Detect voice activity
     bool detectVoiceActivity(float rms);
     

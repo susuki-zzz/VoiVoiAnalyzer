@@ -154,6 +154,37 @@ int runAnalyzerEngineMultipleBlocksTest() {
     return 0;
 }
 
+int runVADAnalyzerSustainedSpeechRateTest() {
+    AudioConfig config;
+    config.sample_rate = SAMPLE_RATE_48K;
+
+    VADAnalyzer analyzer(config);
+
+    const size_t frame_samples = static_cast<size_t>(0.1 * static_cast<double>(config.sample_rate));
+    std::vector<Sample> voiced_frame(frame_samples, 0.1f);
+    std::vector<Sample> silent_frame(frame_samples, 0.0f);
+
+    // Prime with initial silence to establish baseline
+    for (int i = 0; i < 5; ++i) {
+        analyzer.analyze(silent_frame.data(), frame_samples, 0.0f);
+    }
+
+    VADAnalyzer::VADResults results{};
+
+    // Alternate voiced and silent frames to simulate syllable-like transitions
+    const int cycles = 40;
+    for (int i = 0; i < cycles; ++i) {
+        results = analyzer.analyze(voiced_frame.data(), frame_samples, 0.05f);
+        results = analyzer.analyze(silent_frame.data(), frame_samples, 0.0f);
+    }
+
+    if (results.speech_rate < 3.0f || results.speech_rate > 6.0f) {
+        return 201;
+    }
+
+    return 0;
+}
+
 } // namespace
 
 int main() {
@@ -162,6 +193,10 @@ int main() {
     }
 
     if (int result = runAnalyzerEngineMultipleBlocksTest(); result != 0) {
+        return result;
+    }
+
+    if (int result = runVADAnalyzerSustainedSpeechRateTest(); result != 0) {
         return result;
     }
 
