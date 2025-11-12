@@ -8,6 +8,7 @@
 #include <functional>
 #include <memory>
 #include <vector>
+#include <deque>
 
 #include "yvc_core/Types.h"
 
@@ -101,6 +102,25 @@ private:
     std::vector<std::unique_ptr<MetricComponent>> components_;
 
     std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
+};
+
+class HeatmapComponent : public juce::Component {
+public:
+    HeatmapComponent();
+
+    void appendSample(const yvc::AnalysisResults& results);
+    void paint(juce::Graphics& g) override;
+    void resized() override;
+
+    void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
+
+private:
+    void drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples,
+                     float minValue, float maxValue, const juce::String& label, const juce::String& unit);
+
+    std::deque<float> f0History_;
+    std::deque<float> rmsHistory_;
+    int maxSamples_ = 180;
 };
 
 } // namespace yvc::app

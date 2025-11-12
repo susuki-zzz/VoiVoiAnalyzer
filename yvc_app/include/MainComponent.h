@@ -40,6 +40,7 @@ private:
     yvc::MetricsBus& metricsBus_;
     yvc::AnalysisResults currentMetrics_;
     MetricsDisplayComponent metricsDisplay_;
+    HeatmapComponent heatmapDisplay_;
     PresetManager presetManager_;
     AppSettings settings_;
 
@@ -47,6 +48,8 @@ private:
     juce::TextButton settingsButton_{ "Settings" };
     juce::Label presetDescription_;
     juce::Label statusBar_;
+    juce::Label fpsIndicator_;
+    juce::Label degradationNotice_;
 
     juce::int64 lastPaintTimestampMs_ = 0;
     double accumulatedFrameTimeMs_ = 0.0;
@@ -58,6 +61,7 @@ private:
 
     juce::int64 fpsEvaluationStartMs_ = 0;
     juce::int64 recordingStartMs_ = 0;
+    juce::int64 degradationNoticeExpiryMs_ = 0;
 };
 
 } // namespace yvc::app
