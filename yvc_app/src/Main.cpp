@@ -1,55 +1,55 @@
 // VoiVoi GUI Application - Main Entry Point
 // License: GPLv3
 
-// Note: This is a placeholder for JUCE integration
-// When JUCE is added, this will implement the JUCE application
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 
-/*
-#include <JuceHeader.h>
 #include "MainComponent.h"
+#include "yvc_core/MetricsBus.h"
+
+namespace {
 
 class VoiVoiApplication : public juce::JUCEApplication {
 public:
-    VoiVoiApplication() {}
-    
+    VoiVoiApplication() = default;
+
     const juce::String getApplicationName() override { return "VoiVoi Analyzer"; }
     const juce::String getApplicationVersion() override { return "0.1.0"; }
-    
-    void initialise(const juce::String& commandLine) override {
-        mainWindow.reset(new MainWindow(getApplicationName()));
+
+    void initialise(const juce::String&) override {
+        metricsBus_ = std::make_unique<yvc::MetricsBus>();
+        mainWindow_.reset(new MainWindow(getApplicationName(), *metricsBus_));
     }
-    
+
     void shutdown() override {
-        mainWindow = nullptr;
+        mainWindow_ = nullptr;
+        metricsBus_.reset();
     }
-    
+
 private:
     class MainWindow : public juce::DocumentWindow {
     public:
-        MainWindow(juce::String name)
-            : DocumentWindow(name,
-                           juce::Desktop::getInstance().getDefaultLookAndFeel()
-                               .findColour(juce::ResizableWindow::backgroundColourId),
-                           DocumentWindow::allButtons) {
+        MainWindow(juce::String name, yvc::MetricsBus& bus)
+            : juce::DocumentWindow(name,
+                                   juce::Desktop::getInstance().getDefaultLookAndFeel()
+                                       .findColour(juce::ResizableWindow::backgroundColourId),
+                                   juce::DocumentWindow::allButtons) {
             setUsingNativeTitleBar(true);
-            setContentOwned(new MainComponent(), true);
             setResizable(true, true);
-            centreWithSize(getWidth(), getHeight());
+            setContentOwned(new yvc::app::MainComponent(bus), true);
+            centreWithSize(1200, 720);
             setVisible(true);
         }
-        
+
         void closeButtonPressed() override {
             juce::JUCEApplication::getInstance()->systemRequestedQuit();
         }
     };
-    
-    std::unique_ptr<MainWindow> mainWindow;
+
+    std::unique_ptr<MainWindow> mainWindow_;
+    std::unique_ptr<yvc::MetricsBus> metricsBus_;
 };
 
-START_JUCE_APPLICATION(VoiVoiApplication)
-*/
+} // namespace
 
-int main() {
-    // Placeholder - JUCE application will be implemented here
-    return 0;
-}
+START_JUCE_APPLICATION(VoiVoiApplication)
