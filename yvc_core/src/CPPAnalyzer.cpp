@@ -11,8 +11,8 @@ namespace yvc {
 
 CPPAnalyzer::CPPAnalyzer(const AudioConfig& config)
     : config_(config) {
-    fft_buffer_.resize(2048);
-    cepstrum_buffer_.resize(2048);
+    fft_buffer_.resize(config_.fft_size);
+    cepstrum_buffer_.resize(config_.fft_size);
 }
 
 float CPPAnalyzer::analyze(const Sample* samples, size_t num_samples) {
@@ -20,7 +20,7 @@ float CPPAnalyzer::analyze(const Sample* samples, size_t num_samples) {
 }
 
 float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
-    const size_t fft_size = std::min(static_cast<size_t>(2048), num_samples);
+    const size_t fft_size = std::min(static_cast<size_t>(config_.fft_size), num_samples);
     
     // Prepare FFT
     kiss_fftr_cfg fft_cfg = kiss_fftr_alloc(static_cast<int>(fft_size), 0, nullptr, nullptr);

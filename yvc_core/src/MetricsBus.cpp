@@ -59,4 +59,14 @@ void MetricsBus::clear() {
     has_new_data_ = false;
 }
 
+bool MetricsBus::hasNewData() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return has_new_data_;
+}
+
+AnalysisResults MetricsBus::getLatest() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return buffer_[read_index_];
+}
+
 } // namespace yvc

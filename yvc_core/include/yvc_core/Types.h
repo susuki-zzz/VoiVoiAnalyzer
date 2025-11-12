@@ -66,6 +66,8 @@ struct AudioConfig {
     uint32_t buffer_size = 512;
     uint8_t num_channels = 1;  // Mono analysis
     PerformanceMode mode = PerformanceMode::Standard;
+    uint32_t fft_size = 2048;
+    uint32_t hop_size = 512;
 };
 
 } // namespace yvc

@@ -28,6 +28,19 @@ bool AudioBuffer::hasEnoughSamples(size_t required_samples) const {
     return buffer_.size() >= required_samples;
 }
 
+void AudioBuffer::consumeSamples(size_t num_samples) {
+    if (num_samples == 0 || buffer_.empty()) {
+        return;
+    }
+
+    if (num_samples >= buffer_.size()) {
+        clear();
+        return;
+    }
+
+    buffer_.erase(buffer_.begin(), buffer_.begin() + num_samples);
+}
+
 void AudioBuffer::clear() {
     buffer_.clear();
     write_pos_ = 0;

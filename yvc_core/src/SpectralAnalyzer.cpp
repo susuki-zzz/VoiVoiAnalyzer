@@ -12,15 +12,15 @@ namespace yvc {
 
 SpectralAnalyzer::SpectralAnalyzer(const AudioConfig& config)
     : config_(config) {
-    fft_buffer_.resize(2048);
-    magnitude_spectrum_.resize(2048);
+    fft_buffer_.resize(config_.fft_size);
+    magnitude_spectrum_.resize(config_.fft_size / 2 + 1);
 }
 
 SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* samples, size_t num_samples) {
     SpectralResults results;
-    
-    const size_t fft_size = std::min(static_cast<size_t>(2048), num_samples);
-    
+
+    const size_t fft_size = std::min(static_cast<size_t>(config_.fft_size), num_samples);
+
     // Prepare FFT
     kiss_fftr_cfg fft_cfg = kiss_fftr_alloc(static_cast<int>(fft_size), 0, nullptr, nullptr);
     std::vector<kiss_fft_cpx> fft_out(fft_size / 2 + 1);
@@ -35,13 +35,13 @@ SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* sample
     
     // Compute FFT
     kiss_fftr(fft_cfg, windowed.data(), fft_out.data());
-    
+
     // Compute magnitude spectrum
     magnitude_spectrum_.resize(fft_size / 2 + 1);
     for (size_t i = 0; i < fft_size / 2 + 1; ++i) {
         magnitude_spectrum_[i] = std::sqrt(fft_out[i].r * fft_out[i].r + fft_out[i].i * fft_out[i].i);
     }
-    
+
     // Compute spectral tilt
     results.spectral_tilt = computeSpectralTilt(magnitude_spectrum_.data(), magnitude_spectrum_.size());
     
@@ -91,7 +91,7 @@ float SpectralAnalyzer::computeSpectralTilt(const float* spectrum, size_t spectr
 
 SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyzeSibilant(const float* spectrum, size_t spectrum_size) {
     SpectralResults results;
-    
+
     // /s/ sound is typically concentrated in 4-8 kHz range
     const size_t min_bin = static_cast<size_t>(4000.0f * spectrum_size * 2 / config_.sample_rate);
     const size_t max_bin = static_cast<size_t>(8000.0f * spectrum_size * 2 / config_.sample_rate);
