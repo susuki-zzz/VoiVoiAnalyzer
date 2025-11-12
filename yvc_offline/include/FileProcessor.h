@@ -15,6 +15,8 @@
 #include <vector>
 #include <memory>
 
+#include <cstddef>
+
 namespace yvc {
 
 class FileProcessor {
@@ -33,7 +35,7 @@ public:
 private:
     PerformanceMode mode_;
     std::vector<AnalysisResults> results_;
-    
+
     // Analyzers
     std::unique_ptr<F0Detector> f0_detector_;
     std::unique_ptr<LevelAnalyzer> level_analyzer_;
@@ -41,15 +43,41 @@ private:
     std::unique_ptr<HNRAnalyzer> hnr_analyzer_;
     std::unique_ptr<SpectralAnalyzer> spectral_analyzer_;
     std::unique_ptr<VADAnalyzer> vad_analyzer_;
-    
+
     // Initialize analyzers
     void initializeAnalyzers(const AudioConfig& config);
-    
+
     // Process a chunk of audio
     AnalysisResults processChunk(const Sample* samples, size_t num_samples, double timestamp);
-    
+
     // Write results to file
     bool writeResults(const std::string& output_path);
+
+    struct SummaryStats {
+        size_t chunk_count = 0;
+        size_t f0_measurements = 0;
+        SampleRate sample_rate = 0;
+        double duration_seconds = 0.0;
+        double average_f0 = 0.0;
+        double average_rms = 0.0;
+        double max_peak = 0.0;
+        double average_cpp = 0.0;
+        double average_hnr = 0.0;
+        double average_spectral_tilt = 0.0;
+        double average_s_centroid = 0.0;
+        double average_speech_rate = 0.0;
+        double average_pause_ratio = 0.0;
+        double voice_activity_ratio = 0.0;
+    };
+
+    // Load WAV audio data into a mono floating point buffer
+    bool loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate);
+
+    // Compute summary statistics for the processed results
+    SummaryStats computeSummary(SampleRate sample_rate, size_t processed_samples) const;
+
+    // Write summary statistics to disk
+    bool writeSummary(const std::string& output_path, const SummaryStats& summary) const;
 };
 
 } // namespace yvc
