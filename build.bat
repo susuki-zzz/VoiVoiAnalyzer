@@ -20,6 +20,7 @@ set CLEAN_BUILD=false
 set RUN_TESTS=false
 set USE_VISUAL_STUDIO=false
 set OPEN_VS=false
+set CREATE_PACKAGE=false
 
 :parse_args
 if "%~1"=="" goto :args_done
@@ -45,6 +46,8 @@ if /i "%~1"=="--release" (
     set CLEAN_BUILD=true
 ) else if /i "%~1"=="--test" (
     set RUN_TESTS=true
+) else if /i "%~1"=="--package" (
+    set CREATE_PACKAGE=true
 ) else if /i "%~1"=="--help" (
     goto :show_help
 ) else (
@@ -124,6 +127,19 @@ if "!RUN_TESTS!"=="true" (
     )
 )
 
+:: Create package if requested
+if "!CREATE_PACKAGE!"=="true" (
+    echo Creating package using CPack...
+    cd out\build\!BUILD_TYPE!
+    cpack -G ZIP
+    if !errorlevel! equ 0 (
+        echo Package created successfully in out\build\!BUILD_TYPE!
+    ) else (
+        echo WARNING: Package creation failed
+    )
+    cd ..\..\..
+)
+
 echo.
 echo ==================================================
 echo Build completed successfully!
@@ -151,6 +167,11 @@ if "!BUILD_TYPE!"=="x64-release" (
     )
 )
 
+if "!CREATE_PACKAGE!"=="true" (
+    echo.
+    echo Package files available in: out\build\!BUILD_TYPE!\
+)
+
 pause
 exit /b 0
 
@@ -168,13 +189,19 @@ echo   --vs-release     Build Release configuration with Visual Studio
 echo   --open           Open project in Visual Studio after build
 echo   --clean          Clean build directory before building
 echo   --test           Run tests after building
+echo   --package        Create package using CPack after successful build
 echo   --help           Show this help message
 echo.
 echo Examples:
 echo   build.bat --vs-release --open    ^(Visual Studio Release + open IDE^)
 echo   build.bat --release --test       ^(Ninja Release + run tests^)
+echo   build.bat --release --package    ^(Build + create package^)
 echo   build.bat --vs-debug             ^(Visual Studio Debug^)
 echo   build.bat --core-only --clean    ^(Clean + core library only^)
+echo.
+echo Package creation:
+echo   Use --package flag to create ZIP package using CPack
+echo   Alternatively, use package.bat for custom packaging with more options
 echo.
 pause
 exit /b 0

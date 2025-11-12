@@ -42,3 +42,53 @@ endif()
 
 # Enable testing
 enable_testing()
+
+# CPack configuration for packaging (alternative to packagePresets)
+include(CPack)
+set(CPACK_PACKAGE_NAME "VoiVoiAnalyzer")
+set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "VoiVoi Analyzer - Real-time voice training application")
+set(CPACK_PACKAGE_VENDOR "VoiVoi Team")
+set(CPACK_PACKAGE_CONTACT "contact@voivoi.dev")
+
+# Set package file name
+set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-win64")
+
+# Generator-specific settings
+set(CPACK_GENERATOR "ZIP;NSIS")
+set(CPACK_SOURCE_GENERATOR "ZIP")
+
+# Windows-specific settings
+if(WIN32)
+    set(CPACK_NSIS_DISPLAY_NAME "VoiVoi Analyzer")
+    set(CPACK_NSIS_PACKAGE_NAME "VoiVoi Analyzer")
+    set(CPACK_NSIS_HELP_LINK "https://github.com/susuki-zzz/VoiVoiAnalyzer")
+    set(CPACK_NSIS_URL_INFO_ABOUT "https://github.com/susuki-zzz/VoiVoiAnalyzer")
+    set(CPACK_NSIS_CONTACT "contact@voivoi.dev")
+    set(CPACK_NSIS_MODIFY_PATH ON)
+endif()
+
+# Include documentation and license files
+set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+
+# Exclude unwanted files from source package
+set(CPACK_SOURCE_IGNORE_FILES
+    "/\\.git/"
+    "/\\.gitignore"
+    "/build/"
+    "/out/"
+    "\\.user$"
+    "\\.tmp$"
+    "\\.swp$"
+)
+
+# Component installation
+set(CPACK_COMPONENTS_ALL applications libraries documentation)
+set(CPACK_COMPONENT_APPLICATIONS_DISPLAY_NAME "VoiVoi Applications")
+set(CPACK_COMPONENT_LIBRARIES_DISPLAY_NAME "VoiVoi Core Library")
+set(CPACK_COMPONENT_DOCUMENTATION_DISPLAY_NAME "Documentation")
+
+set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION "GUI application and offline analysis tool")
+set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION "Core voice analysis library")
+set(CPACK_COMPONENT_DOCUMENTATION_DESCRIPTION "User and developer documentation")
