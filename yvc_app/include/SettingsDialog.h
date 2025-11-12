@@ -7,6 +7,7 @@
 #include "LocalizationManager.h"
 
 #include <functional>
+#include <vector>
 
 namespace yvc::app {
 
@@ -44,6 +45,7 @@ private:
     void close(bool accepted);
     void updateUILanguage();
     void createTabbedInterface();
+    void layoutTabItems(juce::Component* tab, const std::vector<std::pair<juce::Component*, juce::Component*>>& items);
 
     AppSettings workingCopy_;
     OnClose onClose_;
@@ -84,6 +86,12 @@ private:
     juce::Label privacyInfoLabel_;
     juce::ToggleButton ramOnlyToggle_;
     juce::ToggleButton networkingDisabledToggle_;
+
+    // Layout data for tabs
+    std::vector<std::pair<juce::Component*, juce::Component*>> audioTabItems_;
+    std::vector<std::pair<juce::Component*, juce::Component*>> recordingTabItems_;
+    std::vector<std::pair<juce::Component*, juce::Component*>> displayTabItems_;
+    std::vector<std::pair<juce::Component*, juce::Component*>> privacyTabItems_;
 
     bool hasClosed_ = false;
 };

@@ -3,6 +3,7 @@
 
 #include "MainComponent.h"
 #include "LocalizationManager.h"
+#include "SettingsDialog.h"
 
 #include <juce_core/juce_core.h>
 

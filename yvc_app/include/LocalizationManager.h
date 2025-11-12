@@ -3,18 +3,14 @@
 
 #pragma once
 
-#ifdef JUCE_CORE_H_INCLUDED
-    #include <juce_gui_basics/juce_gui_basics.h>
-    #define USE_JUCE 1
-    #define TRANS(x) (yvc::app::LocalizationManager::getInstance().getString(x))
-#else
-    #define USE_JUCE 0
-    #include <string>
-    #define TRANS(x) (yvc::app::LocalizationManager::getInstance().getString(x))
-#endif
-
+#include <juce_gui_basics/juce_gui_basics.h>
 #include <unordered_map>
 #include <vector>
+
+// Don't redefine TRANS if JUCE already defined it
+#ifndef TRANS
+    #define TRANS(x) (yvc::app::LocalizationManager::getInstance().getString(x))
+#endif
 
 namespace yvc::app {
 
@@ -30,13 +26,8 @@ public:
     void setLanguage(Language language);
     Language getCurrentLanguage() const { return currentLanguage_; }
 
-#if USE_JUCE
     juce::String getString(const juce::String& key) const;
     juce::String getLanguageName(Language language) const;
-#else
-    std::string getString(const std::string& key) const;
-    std::string getLanguageName(Language language) const;
-#endif
 
     std::vector<Language> getAvailableLanguages() const;
 

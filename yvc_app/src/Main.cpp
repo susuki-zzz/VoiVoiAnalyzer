@@ -141,8 +141,8 @@ private:
         
         void moved() override {
             // Save window position preference
-            auto& properties = getApplicationProperties();
-            if (auto* userSettings = properties.getUserSettings()) {
+            auto& appProperties = getApplicationProperties();
+            if (auto* userSettings = appProperties.getUserSettings()) {
                 userSettings->setValue("windowX", getX());
                 userSettings->setValue("windowY", getY());
                 userSettings->saveIfNeeded();
@@ -153,8 +153,8 @@ private:
             DocumentWindow::resized();
             
             // Save window size preference
-            auto& properties = getApplicationProperties();
-            if (auto* userSettings = properties.getUserSettings()) {
+            auto& appProperties = getApplicationProperties();
+            if (auto* userSettings = appProperties.getUserSettings()) {
                 userSettings->setValue("windowWidth", getWidth());
                 userSettings->setValue("windowHeight", getHeight());
                 userSettings->saveIfNeeded();

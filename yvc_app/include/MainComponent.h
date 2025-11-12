@@ -10,12 +10,16 @@
 
 #include "MetricsComponents.h"
 #include "PresetManager.h"
-#include "SettingsDialog.h"
 #include "LocalizationManager.h"
 #include "VisualizationComponents.h"
+#include "SettingsDialog.h"
 #include "yvc_core/MetricsBus.h"
 
 namespace yvc::app {
+
+// Forward declarations
+struct AppSettings;
+class SettingsDialog;
 
 class MainComponent : public juce::Component,
                       private juce::Timer,

@@ -178,70 +178,6 @@ void SettingsDialog::createTabbedInterface() {
     privacyTab->addAndMakeVisible(networkingDisabledToggle_);
     
     tabbedComponent_->addTab(TRANS("privacy_settings"), juce::Colours::darkgrey, privacyTab, true);
-    
-    // Layout components in tabs
-    auto layoutTab = [](juce::Component* tab, std::vector<std::pair<juce::Component*, juce::Component*>> items) {
-        // Create a custom component that handles resizing
-        class TabLayoutComponent : public juce::Component {
-        public:
-            TabLayoutComponent(std::vector<std::pair<juce::Component*, juce::Component*>> items) : items_(std::move(items)) {}
-            
-            void resized() override {
-                auto bounds = getLocalBounds().reduced(kMargin);
-                for (auto& item : items_) {
-                    auto row = bounds.removeFromTop(kRowHeight);
-                    if (item.first) {
-                        item.first->setBounds(row.removeFromLeft(150));
-                        row.removeFromLeft(10);
-                    }
-                    if (item.second) {
-                        item.second->setBounds(row);
-                    }
-                    bounds.removeFromTop(5); // spacing
-                }
-            }
-            
-        private:
-            std::vector<std::pair<juce::Component*, juce::Component*>> items_;
-        };
-        
-        // Replace the tab content with our layout component
-        auto* layoutComp = new TabLayoutComponent(std::move(items));
-        
-        // Transfer child components to layout component
-        for (int i = tab->getNumChildComponents() - 1; i >= 0; --i) {
-            auto* child = tab->getChildComponent(i);
-            tab->removeChildComponent(child);
-            layoutComp->addAndMakeVisible(child);
-        }
-        
-        tab->addAndMakeVisible(layoutComp);
-    };
-    
-    layoutTab(audioTab, {
-        {&sampleRateLabel_, &sampleRateBox_},
-        {&bufferSizeLabel_, &bufferSizeBox_},
-        {&performanceModeLabel_, &performanceModeBox_}
-    });
-    
-    layoutTab(recordingTab, {
-        {&maxRecordingLabel_, &maxRecordingSlider_},
-        {nullptr, &autoSaveToggle_},
-        {nullptr, &preprocToggle_}
-    });
-    
-    layoutTab(displayTab, {
-        {&languageLabel_, &languageBox_},
-        {nullptr, &advancedVisualizationToggle_},
-        {nullptr, &spectralAnalysisToggle_},
-        {&heatmapResolutionLabel_, &heatmapResolutionBox_}
-    });
-    
-    layoutTab(privacyTab, {
-        {nullptr, &privacyInfoLabel_},
-        {nullptr, &ramOnlyToggle_},
-        {nullptr, &networkingDisabledToggle_}
-    });
 }
 
 void SettingsDialog::paint(juce::Graphics& g) {
@@ -265,6 +201,41 @@ void SettingsDialog::resized() {
     
     // Tabbed component takes remaining space
     tabbedComponent_->setBounds(bounds);
+    
+    // Layout tab contents
+    if (auto* audioTab = tabbedComponent_->getTabContentComponent(0)) {
+        layoutTabItems(audioTab, audioTabItems_);
+    }
+    if (auto* recordingTab = tabbedComponent_->getTabContentComponent(1)) {
+        layoutTabItems(recordingTab, recordingTabItems_);
+    }
+    if (auto* displayTab = tabbedComponent_->getTabContentComponent(2)) {
+        layoutTabItems(displayTab, displayTabItems_);
+    }
+    if (auto* privacyTab = tabbedComponent_->getTabContentComponent(3)) {
+        layoutTabItems(privacyTab, privacyTabItems_);
+    }
+}
+
+void SettingsDialog::layoutTabItems(juce::Component* tab, const std::vector<std::pair<juce::Component*, juce::Component*>>& items) {
+    if (!tab) return;
+    
+    auto bounds = tab->getLocalBounds().reduced(kMargin);
+    
+    for (const auto& item : items) {
+        auto row = bounds.removeFromTop(kRowHeight);
+        
+        if (item.first) {
+            item.first->setBounds(row.removeFromLeft(150));
+            row.removeFromLeft(10);
+        }
+        
+        if (item.second) {
+            item.second->setBounds(row);
+        }
+        
+        bounds.removeFromTop(5); // spacing
+    }
 }
 
 void SettingsDialog::buttonClicked(juce::Button* button) {

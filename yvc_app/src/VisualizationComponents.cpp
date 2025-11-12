@@ -531,7 +531,410 @@ std::pair<float, float> ComparativeMetricsComponent::getMetricRange(const juce::
     return {0.0f, 100.0f};
 }
 
-// Additional components would continue here...
-// (SpectrumAnalyzerComponent and MiniWaveformComponent implementations)
+// SpectrumAnalyzerComponent Implementation
+
+SpectrumAnalyzerComponent::SpectrumAnalyzerComponent() {
+    currentSpectrum_.resize(fftSize_ / 2 + 1, 0.0f);
+    peakSpectrum_.resize(fftSize_ / 2 + 1, 0.0f);
+    startTimerHz(30);  // 30 FPS refresh
+}
+
+void SpectrumAnalyzerComponent::setFFTSize(int fftSize) {
+    fftSize_ = fftSize;
+    currentSpectrum_.resize(fftSize_ / 2 + 1, 0.0f);
+    peakSpectrum_.resize(fftSize_ / 2 + 1, 0.0f);
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::setSampleRate(float sampleRate) {
+    sampleRate_ = sampleRate;
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::setFrequencyRange(float minFreq, float maxFreq) {
+    minFreq_ = minFreq;
+    maxFreq_ = maxFreq;
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::setPeakHoldEnabled(bool enabled) {
+    peakHoldEnabled_ = enabled;
+    if (!enabled) {
+        std::fill(peakSpectrum_.begin(), peakSpectrum_.end(), 0.0f);
+    }
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::setHarmonicsOverlayEnabled(bool enabled) {
+    harmonicsOverlayEnabled_ = enabled;
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::updateSpectrum(const float* magnitudeSpectrum, int spectrumSize) {
+    if (spectrumSize != static_cast<int>(currentSpectrum_.size())) {
+        setFFTSize((spectrumSize - 1) * 2);
+    }
+    
+    std::copy(magnitudeSpectrum, magnitudeSpectrum + spectrumSize, currentSpectrum_.begin());
+    
+    // Update peak hold
+    if (peakHoldEnabled_) {
+        for (int i = 0; i < spectrumSize; ++i) {
+            peakSpectrum_[i] = juce::jmax(peakSpectrum_[i] * peakDecayRate_, magnitudeSpectrum[i]);
+        }
+    }
+    
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::updateF0(float f0, bool valid) {
+    currentF0_ = f0;
+    f0Valid_ = valid;
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::paint(juce::Graphics& g) {
+    auto bounds = getLocalBounds();
+    
+    // Background
+    g.fillAll(juce::Colours::black);
+    g.setColour(juce::Colours::darkgrey);
+    g.drawRect(bounds, 1);
+    
+    // Layout
+    auto titleArea = bounds.removeFromTop(25);
+    auto freqAxisArea = bounds.removeFromBottom(20);
+    auto magAxisArea = bounds.removeFromLeft(50);
+    auto spectrumArea = bounds.reduced(2);
+    
+    // Title
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(14.0f, juce::Font::bold));
+    g.drawText(TRANS("spectral_analysis"), titleArea, juce::Justification::centred);
+    
+    // Draw axes
+    drawFrequencyAxis(g, freqAxisArea);
+    drawMagnitudeAxis(g, magAxisArea);
+    
+    // Draw spectrum data
+    if (!currentSpectrum_.empty()) {
+        drawSpectrum(g, spectrumArea);
+        
+        if (peakHoldEnabled_) {
+            drawPeakHold(g, spectrumArea);
+        }
+        
+        if (harmonicsOverlayEnabled_ && f0Valid_) {
+            drawHarmonics(g, spectrumArea);
+        }
+        
+        drawSpectralTilt(g, spectrumArea);
+    }
+}
+
+void SpectrumAnalyzerComponent::resized() {
+    repaint();
+}
+
+void SpectrumAnalyzerComponent::timerCallback() {
+    // Peak hold decay
+    if (peakHoldEnabled_) {
+        bool needsRepaint = false;
+        for (auto& peak : peakSpectrum_) {
+            float newPeak = peak * peakDecayRate_;
+            if (std::abs(peak - newPeak) > 0.001f) {
+                peak = newPeak;
+                needsRepaint = true;
+            }
+        }
+        
+        if (needsRepaint) {
+            repaint();
+        }
+    }
+}
+
+void SpectrumAnalyzerComponent::drawFrequencyAxis(juce::Graphics& g, juce::Rectangle<int> area) {
+    g.setColour(juce::Colours::lightgrey);
+    g.setFont(juce::Font(9.0f));
+    
+    // Logarithmic frequency scale
+    std::vector<float> frequencies = {20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000};
+    
+    for (float freq : frequencies) {
+        if (freq >= minFreq_ && freq <= maxFreq_) {
+            int x = static_cast<int>(frequencyToX(freq, area));
+            
+            juce::String freqStr;
+            if (freq >= 1000) {
+                freqStr = juce::String(freq / 1000.0f, 1) + "k";
+            } else {
+                freqStr = juce::String((int)freq);
+            }
+            
+            g.drawText(freqStr, x - 15, area.getY(), 30, area.getHeight(), juce::Justification::centred);
+            
+            // Tick mark
+            g.drawVerticalLine(x, area.getY(), area.getY() + 3);
+        }
+    }
+}
+
+void SpectrumAnalyzerComponent::drawMagnitudeAxis(juce::Graphics& g, juce::Rectangle<int> area) {
+    g.setColour(juce::Colours::lightgrey);
+    g.setFont(juce::Font(9.0f));
+    
+    // Magnitude scale in dB
+    for (int db = -60; db <= 0; db += 20) {
+        int y = static_cast<int>(magnitudeToY(std::pow(10.0f, db / 20.0f), area));
+        
+        juce::String dbStr = juce::String(db) + "dB";
+        g.drawText(dbStr, area.getX(), y - 6, area.getWidth() - 2, 12, juce::Justification::centredRight);
+        
+        // Tick mark
+        g.drawHorizontalLine(y, area.getRight(), area.getRight() + 3);
+    }
+}
+
+void SpectrumAnalyzerComponent::drawSpectrum(juce::Graphics& g, juce::Rectangle<int> area) {
+    g.setColour(juce::Colours::cyan);
+    
+    juce::Path spectrumPath;
+    bool firstPoint = true;
+    
+    for (int bin = 1; bin < static_cast<int>(currentSpectrum_.size()); ++bin) {
+        float freq = static_cast<float>(bin) * sampleRate_ / (2.0f * (currentSpectrum_.size() - 1));
+        
+        if (freq >= minFreq_ && freq <= maxFreq_) {
+            int x = static_cast<int>(frequencyToX(freq, area));
+            int y = static_cast<int>(magnitudeToY(currentSpectrum_[bin], area));
+            
+            if (firstPoint) {
+                spectrumPath.startNewSubPath(x, y);
+                firstPoint = false;
+            } else {
+                spectrumPath.lineTo(x, y);
+            }
+        }
+    }
+    
+    juce::PathStrokeType stroke(1.5f);
+    g.strokePath(spectrumPath, stroke);
+}
+
+void SpectrumAnalyzerComponent::drawPeakHold(juce::Graphics& g, juce::Rectangle<int> area) {
+    g.setColour(juce::Colours::yellow.withAlpha(0.7f));
+    
+    for (int bin = 1; bin < static_cast<int>(peakSpectrum_.size()); ++bin) {
+        float freq = static_cast<float>(bin) * sampleRate_ / (2.0f * (peakSpectrum_.size() - 1));
+        
+        if (freq >= minFreq_ && freq <= maxFreq_ && peakSpectrum_[bin] > 0.001f) {
+            int x = static_cast<int>(frequencyToX(freq, area));
+            int y = static_cast<int>(magnitudeToY(peakSpectrum_[bin], area));
+            
+            g.drawVerticalLine(x, y, y + 2);
+        }
+    }
+}
+
+void SpectrumAnalyzerComponent::drawHarmonics(juce::Graphics& g, juce::Rectangle<int> area) {
+    if (currentF0_ <= 0.0f) return;
+    
+    g.setColour(juce::Colours::orange.withAlpha(0.6f));
+    
+    // Draw first 10 harmonics
+    for (int harmonic = 1; harmonic <= 10; ++harmonic) {
+        float freq = currentF0_ * harmonic;
+        
+        if (freq >= minFreq_ && freq <= maxFreq_) {
+            int x = static_cast<int>(frequencyToX(freq, area));
+            g.drawVerticalLine(x, area.getY(), area.getBottom());
+            
+            // Harmonic number label
+            if (harmonic <= 5) {
+                g.setFont(juce::Font(8.0f));
+                g.drawText(juce::String(harmonic), x - 5, area.getY(), 10, 15, juce::Justification::centred);
+            }
+        }
+    }
+}
+
+void SpectrumAnalyzerComponent::drawSpectralTilt(juce::Graphics& g, juce::Rectangle<int> area) {
+    // Simple spectral tilt visualization - line from low to high frequency
+    g.setColour(juce::Colours::magenta.withAlpha(0.4f));
+    
+    // Calculate average magnitude in low and high frequency bands
+    int lowBin = frequencyToBin(200.0f);
+    int highBin = frequencyToBin(4000.0f);
+    
+    if (lowBin < static_cast<int>(currentSpectrum_.size()) && highBin < static_cast<int>(currentSpectrum_.size())) {
+        float lowMag = 0.0f, highMag = 0.0f;
+        int lowCount = 0, highCount = 0;
+        
+        for (int i = lowBin; i < lowBin + 10 && i < static_cast<int>(currentSpectrum_.size()); ++i) {
+            lowMag += currentSpectrum_[i];
+            lowCount++;
+        }
+        
+        for (int i = highBin; i < highBin + 10 && i < static_cast<int>(currentSpectrum_.size()); ++i) {
+            highMag += currentSpectrum_[i];
+            highCount++;
+        }
+        
+        if (lowCount > 0 && highCount > 0) {
+            lowMag /= lowCount;
+            highMag /= highCount;
+            
+            int x1 = static_cast<int>(frequencyToX(200.0f, area));
+            int y1 = static_cast<int>(magnitudeToY(lowMag, area));
+            int x2 = static_cast<int>(frequencyToX(4000.0f, area));
+            int y2 = static_cast<int>(magnitudeToY(highMag, area));
+            
+            juce::PathStrokeType tiltStroke(3.0f);
+            juce::Path tiltPath;
+            tiltPath.startNewSubPath(x1, y1);
+            tiltPath.lineTo(x2, y2);
+            g.strokePath(tiltPath, tiltStroke);
+        }
+    }
+}
+
+float SpectrumAnalyzerComponent::frequencyToX(float freq, juce::Rectangle<int> area) const {
+    if (maxFreq_ <= minFreq_) return area.getX();
+    
+    // Logarithmic scale
+    float logMin = std::log10(minFreq_);
+    float logMax = std::log10(maxFreq_);
+    float logFreq = std::log10(freq);
+    
+    float ratio = (logFreq - logMin) / (logMax - logMin);
+    return area.getX() + ratio * area.getWidth();
+}
+
+float SpectrumAnalyzerComponent::magnitudeToY(float mag, juce::Rectangle<int> area) const {
+    // Convert to dB and map to pixel space
+    float db = 20.0f * std::log10(mag + 1e-10f);
+    db = juce::jlimit(-60.0f, 0.0f, db);
+    
+    float ratio = (db + 60.0f) / 60.0f;  // Map -60dB to 0dB -> 0 to 1
+    return area.getBottom() - ratio * area.getHeight();
+}
+
+int SpectrumAnalyzerComponent::frequencyToBin(float freq) const {
+    return static_cast<int>(freq * (currentSpectrum_.size() - 1) * 2.0f / sampleRate_);
+}
+
+// MiniWaveformComponent Implementation
+
+MiniWaveformComponent::MiniWaveformComponent() {
+    waveformData_.resize(maxSamples_, 0.0f);
+}
+
+void MiniWaveformComponent::updateLevel(float rms, float peak) {
+    currentRMS_ = rms;
+    currentPeak_ = peak;
+    repaint();
+}
+
+void MiniWaveformComponent::appendSample(float sample) {
+    waveformData_.push_back(sample);
+    
+    while (static_cast<int>(waveformData_.size()) > maxSamples_) {
+        waveformData_.pop_front();
+    }
+    
+    repaint();
+}
+
+void MiniWaveformComponent::setDisplayLength(double seconds) {
+    displayLength_ = seconds;
+    // Assuming 48kHz sample rate for calculation
+    maxSamples_ = static_cast<int>(seconds * 48000.0 / 10.0);  // Decimated by 10
+    
+    while (static_cast<int>(waveformData_.size()) > maxSamples_) {
+        waveformData_.pop_front();
+    }
+    
+    repaint();
+}
+
+void MiniWaveformComponent::paint(juce::Graphics& g) {
+    auto bounds = getLocalBounds();
+    
+    // Background
+    g.fillAll(juce::Colours::black.withAlpha(0.8f));
+    g.setColour(juce::Colours::darkgrey);
+    g.drawRect(bounds, 1);
+    
+    // Layout
+    auto waveformArea = bounds.removeFromTop(bounds.getHeight() * 0.7f);
+    auto meterArea = bounds;
+    
+    drawWaveform(g, waveformArea);
+    drawVUMeters(g, meterArea);
+}
+
+void MiniWaveformComponent::resized() {
+    repaint();
+}
+
+void MiniWaveformComponent::drawWaveform(juce::Graphics& g, juce::Rectangle<int> area) {
+    if (waveformData_.empty()) return;
+    
+    g.setColour(juce::Colours::green.withAlpha(0.8f));
+    
+    juce::Path waveformPath;
+    bool firstPoint = true;
+    
+    for (size_t i = 0; i < waveformData_.size(); ++i) {
+        float sample = waveformData_[i];
+        
+        int x = static_cast<int>(area.getX() + (i * area.getWidth()) / waveformData_.size());
+        int y = static_cast<int>(area.getCentreY() - sample * area.getHeight() / 2);
+        
+        if (firstPoint) {
+            waveformPath.startNewSubPath(x, y);
+            firstPoint = false;
+        } else {
+            waveformPath.lineTo(x, y);
+        }
+    }
+    
+    juce::PathStrokeType stroke(1.0f);
+    g.strokePath(waveformPath, stroke);
+    
+    // Center line
+    g.setColour(juce::Colours::white.withAlpha(0.3f));
+    g.drawHorizontalLine(area.getCentreY(), area.getX(), area.getRight());
+}
+
+void MiniWaveformComponent::drawVUMeters(juce::Graphics& g, juce::Rectangle<int> area) {
+    auto rmsArea = area.removeFromLeft(area.getWidth() / 2).reduced(2);
+    auto peakArea = area.reduced(2);
+    
+    // RMS meter
+    g.setColour(juce::Colours::darkgreen);
+    g.fillRect(rmsArea);
+    
+    float rmsNormalized = juce::jlimit(0.0f, 1.0f, (currentRMS_ + 60.0f) / 60.0f);
+    auto rmsLevelArea = rmsArea.removeFromBottom(static_cast<int>(rmsArea.getHeight() * rmsNormalized));
+    g.setColour(juce::Colours::green);
+    g.fillRect(rmsLevelArea);
+    
+    // Peak meter
+    g.setColour(juce::Colours::darkred);
+    g.fillRect(peakArea);
+    
+    float peakNormalized = juce::jlimit(0.0f, 1.0f, (currentPeak_ + 40.0f) / 40.0f);
+    auto peakLevelArea = peakArea.removeFromBottom(static_cast<int>(peakArea.getHeight() * peakNormalized));
+    g.setColour(peakNormalized > 0.9f ? juce::Colours::red : juce::Colours::yellow);
+    g.fillRect(peakLevelArea);
+    
+    // Labels
+    g.setColour(juce::Colours::white);
+    g.setFont(juce::Font(8.0f));
+    g.drawText("RMS", rmsArea.getX(), area.getBottom() + 2, rmsArea.getWidth(), 10, juce::Justification::centred);
+    g.drawText("PEAK", peakArea.getX(), area.getBottom() + 2, peakArea.getWidth(), 10, juce::Justification::centred);
+}
 
 } // namespace yvc::app

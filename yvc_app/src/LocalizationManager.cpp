@@ -3,14 +3,10 @@
 
 #include "LocalizationManager.h"
 
-#ifdef JUCE_CORE_H_INCLUDED
-    #include <juce_core/juce_core.h>
-    #define USE_JUCE 1
-#else
-    #define USE_JUCE 0
-    #include <fstream>
-    #include <filesystem>
-#endif
+// Force JUCE usage when compiled with JUCE
+#include <juce_core/juce_core.h>
+#include <fstream>
+#include <filesystem>
 
 namespace yvc::app {
 
@@ -37,7 +33,7 @@ void LocalizationManager::setLanguage(Language language) {
     }
 }
 
-#if USE_JUCE
+// Always implement JUCE version when building with JUCE
 juce::String LocalizationManager::getString(const juce::String& key) const {
     auto it = translations_.find(key.toStdString());
     if (it != translations_.end()) {
@@ -47,39 +43,23 @@ juce::String LocalizationManager::getString(const juce::String& key) const {
     // Return key if translation not found (for debugging)
     return "[" + key + "]";
 }
-#else
-std::string LocalizationManager::getString(const std::string& key) const {
-    auto it = translations_.find(key);
-    if (it != translations_.end()) {
-        return it->second;
-    }
-    
-    // Return key if translation not found
-    return "[" + key + "]";
-}
-#endif
 
-std::vector<LocalizationManager::Language> LocalizationManager::getAvailableLanguages() const {
-    return { Language::English, Language::Japanese };
-}
-
-#if USE_JUCE
 juce::String LocalizationManager::getLanguageName(Language language) const {
-#else
-std::string LocalizationManager::getLanguageName(Language language) const {
-#endif
     switch (language) {
         case Language::English: 
             return "English";
         case Language::Japanese: 
-            return "Japanese";  // Use ASCII in stub version
+            return "Japanese";
         default: 
             return "Unknown";
     }
 }
 
+std::vector<LocalizationManager::Language> LocalizationManager::getAvailableLanguages() const {
+    return { Language::English, Language::Japanese };
+}
+
 void LocalizationManager::saveLanguagePreference() {
-#if USE_JUCE
     juce::PropertiesFile::Options options;
     options.applicationName = "VoiVoiAnalyzer";
     options.filenameSuffix = ".settings";
@@ -88,22 +68,9 @@ void LocalizationManager::saveLanguagePreference() {
     auto settings = std::make_unique<juce::PropertiesFile>(options);
     settings->setValue(kLanguagePreferenceKey, static_cast<int>(currentLanguage_));
     settings->saveIfNeeded();
-#else
-    // Simple file-based storage for stub version
-    try {
-        std::ofstream file(kConfigFileName);
-        if (file.is_open()) {
-            file << kLanguagePreferenceKey << "=" << static_cast<int>(currentLanguage_) << std::endl;
-            file.close();
-        }
-    } catch (...) {
-        // Ignore file errors in stub version
-    }
-#endif
 }
 
 void LocalizationManager::loadLanguagePreference() {
-#if USE_JUCE
     juce::PropertiesFile::Options options;
     options.applicationName = "VoiVoiAnalyzer";
     options.filenameSuffix = ".settings";
@@ -115,29 +82,6 @@ void LocalizationManager::loadLanguagePreference() {
     if (languageInt >= 0 && languageInt < static_cast<int>(Language::Japanese) + 1) {
         currentLanguage_ = static_cast<Language>(languageInt);
     }
-#else
-    // Simple file-based loading for stub version
-    try {
-        std::ifstream file(kConfigFileName);
-        if (file.is_open()) {
-            std::string line;
-            while (std::getline(file, line)) {
-                auto pos = line.find('=');
-                if (pos != std::string::npos && line.substr(0, pos) == kLanguagePreferenceKey) {
-                    int languageInt = std::stoi(line.substr(pos + 1));
-                    if (languageInt >= 0 && languageInt <= static_cast<int>(Language::Japanese)) {
-                        currentLanguage_ = static_cast<Language>(languageInt);
-                    }
-                    break;
-                }
-            }
-            file.close();
-        }
-    } catch (...) {
-        // Use default English if file cannot be read
-        currentLanguage_ = Language::English;
-    }
-#endif
     
     loadLanguageData(currentLanguage_);
 }
@@ -278,8 +222,24 @@ void LocalizationManager::loadLanguageData(Language language) {
             {"settings_cancel", "Cancel"},
             {"settings_ok", "OK"},
             
+            // Heatmaps
+            {"heatmap_awaiting_data", "Data taiki chu"},
+            {"spectral_analysis", "Spectral Kaiseki"},
+            {"comparison", "Hikaku"},
+            
             // All other keys fall back to English
         };
+        
+        // Add fallbacks for missing keys
+        if (translations_.find("display_settings") == translations_.end()) {
+            translations_["display_settings"] = "Hyoji Settei";
+        }
+        if (translations_.find("privacy_settings") == translations_.end()) {
+            translations_["privacy_settings"] = "Privacy Settei";
+        }
+        if (translations_.find("advanced_visualization") == translations_.end()) {
+            translations_["advanced_visualization"] = "Kodo Visualization";
+        }
     }
 }
 
