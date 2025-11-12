@@ -1,35 +1,63 @@
-// VoiVoi GUI Application - Main Component Header
+// VoiVoi GUI Application - Main Component
 // License: GPLv3
-// Purpose: Main application window component
 
 #pragma once
 
-// Note: This is a placeholder for JUCE integration
-// When JUCE is added, this will include JUCE headers and implement the main component
+#include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 
-namespace yvc {
+#include <array>
 
-// Placeholder for MainComponent class
-// Will be implemented with JUCE integration
+#include "MetricsComponents.h"
+#include "PresetManager.h"
+#include "SettingsDialog.h"
+#include "yvc_core/MetricsBus.h"
 
-/*
+namespace yvc::app {
+
 class MainComponent : public juce::Component,
-                     public juce::Timer {
+                      private juce::Timer,
+                      private juce::ComboBox::Listener,
+                      private juce::Button::Listener {
 public:
-    MainComponent();
+    explicit MainComponent(yvc::MetricsBus& metricsBus);
     ~MainComponent() override;
-    
+
     void paint(juce::Graphics& g) override;
     void resized() override;
-    void timerCallback() override;
-    
-private:
-    // Audio processor
-    // Visualization components
-    // Settings panel
-    
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
-};
-*/
 
-} // namespace yvc
+private:
+    void timerCallback() override;
+    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
+    void buttonClicked(juce::Button* button) override;
+
+    void refreshMetrics();
+    void applyPreset(const Preset& preset);
+    void updateStatusBar();
+    void evaluateFrameBudget();
+    void configureTimerForCurrentBudget();
+
+    yvc::MetricsBus& metricsBus_;
+    yvc::AnalysisResults currentMetrics_;
+    MetricsDisplayComponent metricsDisplay_;
+    PresetManager presetManager_;
+    AppSettings settings_;
+
+    juce::ComboBox presetSelector_;
+    juce::TextButton settingsButton_{ "Settings" };
+    juce::Label presetDescription_;
+    juce::Label statusBar_;
+
+    juce::int64 lastPaintTimestampMs_ = 0;
+    double accumulatedFrameTimeMs_ = 0.0;
+    int accumulatedFrames_ = 0;
+    double currentFps_ = 60.0;
+
+    const std::array<int, 3> frameBudgets_{ { 60, 45, 30 } };
+    size_t frameBudgetIndex_ = 0;
+
+    juce::int64 fpsEvaluationStartMs_ = 0;
+    juce::int64 recordingStartMs_ = 0;
+};
+
+} // namespace yvc::app
