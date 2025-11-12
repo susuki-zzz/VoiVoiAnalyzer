@@ -11,6 +11,10 @@ bool approximatelyEqual(float lhs, float rhs, float tolerance) {
     return std::fabs(lhs - rhs) <= tolerance;
 }
 
+bool approximatelyEqual(double lhs, double rhs, double tolerance) {
+    return std::fabs(lhs - rhs) <= tolerance;
+}
+
 int runAnalyzerEngineSmokeTest() {
     MetricsBus bus;
 
@@ -115,8 +119,51 @@ int runAnalyzerEngineSmokeTest() {
     return 0;
 }
 
+int runAnalyzerEngineMultipleBlocksTest() {
+    MetricsBus bus;
+
+    AudioConfig config;
+    config.sample_rate = SAMPLE_RATE_48K;
+
+    AnalyzerEngine engine(config, bus, PerformanceMode::Standard);
+
+    const auto fft_size = static_cast<size_t>(engine.getFFTSize());
+    const auto hop_size = static_cast<size_t>(engine.getHopSize());
+
+    std::vector<Sample> block(fft_size + hop_size, 0.0f);
+    const double start_timestamp = 0.25;
+
+    engine.process(block.data(), block.size(), start_timestamp);
+
+    const auto history = bus.getHistory();
+    if (history.size() != 2) {
+        return 101;
+    }
+
+    const double sample_rate = static_cast<double>(engine.getConfig().sample_rate);
+    const double hop_duration = static_cast<double>(hop_size) / sample_rate;
+
+    if (!approximatelyEqual(history[0].timestamp, start_timestamp, 1e-6)) {
+        return 102;
+    }
+
+    if (!approximatelyEqual(history[1].timestamp, start_timestamp + hop_duration, 1e-6)) {
+        return 103;
+    }
+
+    return 0;
+}
+
 } // namespace
 
 int main() {
-    return runAnalyzerEngineSmokeTest();
+    if (int result = runAnalyzerEngineSmokeTest(); result != 0) {
+        return result;
+    }
+
+    if (int result = runAnalyzerEngineMultipleBlocksTest(); result != 0) {
+        return result;
+    }
+
+    return 0;
 }
