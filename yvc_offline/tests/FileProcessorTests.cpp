@@ -1,9 +1,11 @@
+#include <gtest/gtest.h>
+
 #include <FileProcessor.h>
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <algorithm>
 #include <limits>
 #include <numbers>
 #include <random>
@@ -30,7 +32,7 @@ std::filesystem::path uniqueTempFile(const std::string& prefix, const std::strin
 }
 
 void writeTestWav(const std::filesystem::path& path, SampleRate sample_rate, double duration_seconds) {
-    const uint16_t audio_format = 1;  // PCM
+    const uint16_t audio_format = 1;
     const uint16_t num_channels = 1;
     const uint16_t bits_per_sample = 16;
     const uint16_t block_align = num_channels * bits_per_sample / 8;
@@ -44,7 +46,6 @@ void writeTestWav(const std::filesystem::path& path, SampleRate sample_rate, dou
     out.write(reinterpret_cast<const char*>(&riff_chunk_size), sizeof(riff_chunk_size));
     out.write("WAVE", 4);
 
-    // fmt chunk
     out.write("fmt ", 4);
     const uint32_t fmt_chunk_size = 16;
     out.write(reinterpret_cast<const char*>(&fmt_chunk_size), sizeof(fmt_chunk_size));
@@ -55,7 +56,6 @@ void writeTestWav(const std::filesystem::path& path, SampleRate sample_rate, dou
     out.write(reinterpret_cast<const char*>(&block_align), sizeof(block_align));
     out.write(reinterpret_cast<const char*>(&bits_per_sample), sizeof(bits_per_sample));
 
-    // data chunk
     out.write("data", 4);
     out.write(reinterpret_cast<const char*>(&data_size), sizeof(data_size));
 
@@ -77,9 +77,7 @@ bool fileContains(const std::filesystem::path& path, const std::string& token) {
     return content.find(token) != std::string::npos;
 }
 
-}  // namespace
-
-int main() {
+TEST(FileProcessorTests, GeneratesExpectedOutputsForStandardMode) {
     const SampleRate sample_rate = SAMPLE_RATE_48K;
     const double duration_seconds = 2.0;
 
@@ -97,54 +95,29 @@ int main() {
     FileProcessor processor;
     processor.setMode(PerformanceMode::Standard);
 
-    if (!processor.processFile(wav_path.string(), csv_path.string())) {
-        std::filesystem::remove(wav_path);
-        std::filesystem::remove(csv_path);
-        std::filesystem::remove(summary_path);
-        std::filesystem::remove(anomalies_path);
-        std::filesystem::remove(heatmap_path);
-        return 1;
-    }
-
+    ASSERT_TRUE(processor.processFile(wav_path.string(), csv_path.string()));
     const auto& results = processor.getResults();
-    if (results.empty()) {
-        return 2;
-    }
+    EXPECT_FALSE(results.empty());
 
-    if (!std::filesystem::exists(csv_path)) {
-        return 3;
-    }
+    EXPECT_TRUE(std::filesystem::exists(csv_path));
+    EXPECT_TRUE(std::filesystem::exists(summary_path));
+    EXPECT_TRUE(fileContains(summary_path, "\"duration_seconds\""));
+    EXPECT_TRUE(std::filesystem::exists(anomalies_path));
+    EXPECT_TRUE(fileContains(anomalies_path, "\"anomalies\""));
+    EXPECT_TRUE(std::filesystem::exists(heatmap_path));
+    EXPECT_TRUE(fileContains(heatmap_path, "chunk_index"));
 
-    if (!std::filesystem::exists(summary_path)) {
-        return 4;
-    }
-
-    if (!fileContains(summary_path, "\"duration_seconds\"")) {
-        return 5;
-    }
-
-    if (!std::filesystem::exists(anomalies_path)) {
-        return 6;
-    }
-
-    if (!fileContains(anomalies_path, "\"anomalies\"")) {
-        return 7;
-    }
-
-    if (!std::filesystem::exists(heatmap_path)) {
-        return 8;
-    }
-
-    if (!fileContains(heatmap_path, "chunk_index")) {
-        return 9;
-    }
-
-    // Clean up temporary files
     std::filesystem::remove(wav_path);
     std::filesystem::remove(csv_path);
     std::filesystem::remove(summary_path);
     std::filesystem::remove(anomalies_path);
     std::filesystem::remove(heatmap_path);
-
-    return 0;
 }
+
+TEST(FileProcessorTests, FailsGracefullyWhenFileMissing) {
+    FileProcessor processor;
+    processor.setMode(PerformanceMode::Light);
+    EXPECT_FALSE(processor.processFile("/nonexistent/input.wav", "/tmp/output.csv"));
+}
+
+} // namespace

@@ -1,204 +1,129 @@
+#include <gtest/gtest.h>
+
+#include "TestSignalHelpers.h"
+
 #include <yvc_core/AnalyzerEngine.h>
+#include <yvc_core/CPPAnalyzer.h>
+#include <yvc_core/F0Detector.h>
+#include <yvc_core/HNRAnalyzer.h>
+#include <yvc_core/LevelAnalyzer.h>
+#include <yvc_core/MetricsBus.h>
+#include <yvc_core/PerformanceMode.h>
+#include <yvc_core/SpectralAnalyzer.h>
+#include <yvc_core/VADAnalyzer.h>
 
-#include <cmath>
-#include <numbers>
-#include <vector>
-
+namespace yvc::test {
 namespace {
-using namespace yvc;
 
-bool approximatelyEqual(float lhs, float rhs, float tolerance) {
-    return std::fabs(lhs - rhs) <= tolerance;
-}
-
-bool approximatelyEqual(double lhs, double rhs, double tolerance) {
-    return std::fabs(lhs - rhs) <= tolerance;
-}
-
-int runAnalyzerEngineSmokeTest() {
-    MetricsBus bus;
-
-    AudioConfig config;
-    config.sample_rate = SAMPLE_RATE_48K;
-
-    AnalyzerEngine engine(config, bus, PerformanceMode::Standard);
-    const auto engine_config = engine.getConfig();
-
-    const size_t frame_samples = engine_config.fft_size;
-    std::vector<Sample> sine(frame_samples);
-    const float frequency = 440.0f;
-
-    for (size_t i = 0; i < frame_samples; ++i) {
-        sine[i] = std::sin(2.0f * std::numbers::pi_v<float> * frequency * static_cast<float>(i) /
-                           static_cast<float>(engine_config.sample_rate));
+class AnalyzerEngineFixture : public ::testing::TestWithParam<PerformanceMode> {
+protected:
+    void SetUp() override {
+        config_.sample_rate = SAMPLE_RATE_48K;
+        engine_ = std::make_unique<AnalyzerEngine>(config_, bus_, GetParam());
     }
 
-    engine.process(sine.data(), sine.size(), 0.0);
-
-    AnalysisResults results{};
-    if (!bus.read(results)) {
-        return 1;
-    }
-
-    F0Detector direct_f0(engine_config);
-    bool expected_f0_valid = false;
-    const float expected_f0 = direct_f0.detect(sine.data(), frame_samples, expected_f0_valid);
-
-    if (results.f0_valid != expected_f0_valid) {
-        return 2;
-    }
-
-    if (!approximatelyEqual(results.f0, expected_f0, 1e-3f)) {
-        return 3;
-    }
-
-    LevelAnalyzer direct_level(engine_config);
-    const auto expected_level = direct_level.analyze(sine.data(), frame_samples);
-    if (!approximatelyEqual(results.rms, expected_level.rms, 1e-4f)) {
-        return 4;
-    }
-    if (!approximatelyEqual(results.peak, expected_level.peak, 1e-4f)) {
-        return 5;
-    }
-    if (!approximatelyEqual(results.crest_factor, expected_level.crest_factor, 1e-3f)) {
-        return 6;
-    }
-
-    CPPAnalyzer direct_cpp(engine_config);
-    const float expected_cpp = direct_cpp.analyze(sine.data(), frame_samples);
-    if (!approximatelyEqual(results.cpp, expected_cpp, 1e-3f)) {
-        return 7;
-    }
-
-    if (results.f0_valid) {
-        HNRAnalyzer direct_hnr(engine_config);
-        const float expected_hnr = direct_hnr.analyze(sine.data(), frame_samples, expected_f0);
-        if (!approximatelyEqual(results.hnr, expected_hnr, 1e-3f)) {
-            return 8;
+    void TearDown() override {
+        AnalysisResults results{};
+        while (bus_.read(results)) {
         }
     }
 
-    SpectralAnalyzer direct_spectral(engine_config);
-    const auto expected_spectral = direct_spectral.analyze(sine.data(), frame_samples);
-    if (!approximatelyEqual(results.spectral_tilt, expected_spectral.spectral_tilt, 1e-3f)) {
-        return 9;
-    }
-    if (!approximatelyEqual(results.s_centroid, expected_spectral.s_centroid, 1e-3f)) {
-        return 10;
-    }
-    if (results.s_detected != expected_spectral.s_detected) {
-        return 11;
+    AudioConfig config_{};
+    MetricsBus bus_{};
+    std::unique_ptr<AnalyzerEngine> engine_;
+};
+
+TEST_P(AnalyzerEngineFixture, PublishesConsistentMetricsForSineWave) {
+    const auto& engine_config = engine_->getConfig();
+    const size_t frame_samples = engine_config.fft_size;
+    auto sine = generateSineWave(440.0f, frame_samples, engine_config.sample_rate);
+
+    engine_->process(sine.data(), sine.size(), 0.0);
+
+    AnalysisResults results{};
+    ASSERT_TRUE(bus_.read(results));
+
+    F0Detector direct_f0(engine_config);
+    bool f0_valid = false;
+    const float expected_f0 = direct_f0.detect(sine.data(), frame_samples, f0_valid);
+    EXPECT_EQ(results.f0_valid, f0_valid);
+    EXPECT_TRUE(approximatelyEqual(results.f0, expected_f0, 1e-3f));
+
+    LevelAnalyzer level(engine_config);
+    const auto expected_level = level.analyze(sine.data(), frame_samples);
+    EXPECT_TRUE(approximatelyEqual(results.rms, expected_level.rms, 1e-4f));
+    EXPECT_TRUE(approximatelyEqual(results.peak, expected_level.peak, 1e-4f));
+    EXPECT_TRUE(approximatelyEqual(results.crest_factor, expected_level.crest_factor, 1e-3f));
+
+    CPPAnalyzer cpp(engine_config);
+    const float expected_cpp = cpp.analyze(sine.data(), frame_samples);
+    EXPECT_TRUE(approximatelyEqual(results.cpp, expected_cpp, 1e-3f));
+
+    if (results.f0_valid) {
+        HNRAnalyzer hnr(engine_config);
+        const float expected_hnr = hnr.analyze(sine.data(), frame_samples, expected_f0);
+        EXPECT_TRUE(approximatelyEqual(results.hnr, expected_hnr, 1e-3f));
     }
 
-    VADAnalyzer direct_vad(engine_config);
-    const auto expected_vad = direct_vad.analyze(sine.data(), frame_samples, expected_level.rms);
-    if (results.voice_active != expected_vad.voice_active) {
-        return 12;
-    }
-    if (!approximatelyEqual(results.speech_rate, expected_vad.speech_rate, 1e-3f)) {
-        return 13;
-    }
-    if (!approximatelyEqual(results.pause_ratio, expected_vad.pause_ratio, 1e-3f)) {
-        return 14;
-    }
+    SpectralAnalyzer spectral(engine_config);
+    const auto expected_spectral = spectral.analyze(sine.data(), frame_samples);
+    EXPECT_TRUE(approximatelyEqual(results.spectral_tilt, expected_spectral.spectral_tilt, 1e-3f));
+    EXPECT_TRUE(approximatelyEqual(results.s_centroid, expected_spectral.s_centroid, 1e-3f));
+    EXPECT_EQ(results.s_detected, expected_spectral.s_detected);
 
-    if (bus.hasNewData()) {
-        return 15;
-    }
+    VADAnalyzer vad(engine_config);
+    const auto expected_vad = vad.analyze(sine.data(), frame_samples, expected_level.rms);
+    EXPECT_EQ(results.voice_active, expected_vad.voice_active);
+    EXPECT_TRUE(approximatelyEqual(results.speech_rate, expected_vad.speech_rate, 1e-3f));
+    EXPECT_TRUE(approximatelyEqual(results.pause_ratio, expected_vad.pause_ratio, 1e-3f));
 
-    const auto history = bus.getHistory();
-    if (history.empty()) {
-        return 16;
-    }
-
-    const auto latest = bus.getLatest();
-    if (!approximatelyEqual(latest.rms, results.rms, 1e-6f)) {
-        return 17;
-    }
-
-    return 0;
+    EXPECT_FALSE(bus_.hasNewData());
+    const auto history = bus_.getHistory();
+    ASSERT_FALSE(history.empty());
+    EXPECT_TRUE(approximatelyEqual(history.back().rms, results.rms, 1e-6f));
 }
 
-int runAnalyzerEngineMultipleBlocksTest() {
-    MetricsBus bus;
-
-    AudioConfig config;
-    config.sample_rate = SAMPLE_RATE_48K;
-
-    AnalyzerEngine engine(config, bus, PerformanceMode::Standard);
-
-    const auto fft_size = static_cast<size_t>(engine.getFFTSize());
-    const auto hop_size = static_cast<size_t>(engine.getHopSize());
+TEST_P(AnalyzerEngineFixture, MaintainsHistoryAcrossMultipleBlocks) {
+    const auto fft_size = static_cast<size_t>(engine_->getFFTSize());
+    const auto hop_size = static_cast<size_t>(engine_->getHopSize());
 
     std::vector<Sample> block(fft_size + hop_size, 0.0f);
     const double start_timestamp = 0.25;
 
-    engine.process(block.data(), block.size(), start_timestamp);
+    engine_->process(block.data(), block.size(), start_timestamp);
 
-    const auto history = bus.getHistory();
-    if (history.size() != 2) {
-        return 101;
-    }
+    const auto history = bus_.getHistory();
+    ASSERT_EQ(history.size(), 2u);
 
-    const double sample_rate = static_cast<double>(engine.getConfig().sample_rate);
+    const double sample_rate = static_cast<double>(engine_->getConfig().sample_rate);
     const double hop_duration = static_cast<double>(hop_size) / sample_rate;
 
-    if (!approximatelyEqual(history[0].timestamp, start_timestamp, 1e-6)) {
-        return 102;
-    }
-
-    if (!approximatelyEqual(history[1].timestamp, start_timestamp + hop_duration, 1e-6)) {
-        return 103;
-    }
-
-    return 0;
+    EXPECT_TRUE(approximatelyEqual(history.front().timestamp, start_timestamp, 1e-6));
+    EXPECT_TRUE(approximatelyEqual(history.back().timestamp, start_timestamp + hop_duration, 1e-6));
 }
 
-int runVADAnalyzerSustainedSpeechRateTest() {
+TEST(AnalyzerEngineVADTest, SustainedSpeechRateRemainsInExpectedRange) {
     AudioConfig config;
     config.sample_rate = SAMPLE_RATE_48K;
 
     VADAnalyzer analyzer(config);
-
     const size_t frame_samples = static_cast<size_t>(0.1 * static_cast<double>(config.sample_rate));
-    std::vector<Sample> voiced_frame(frame_samples, 0.1f);
-    std::vector<Sample> silent_frame(frame_samples, 0.0f);
 
-    // Prime with initial silence to establish baseline
-    for (int i = 0; i < 5; ++i) {
-        analyzer.analyze(silent_frame.data(), frame_samples, 0.0f);
-    }
-
+    auto sequence = generateAlternatingFrames(frame_samples, 40);
     VADAnalyzer::VADResults results{};
-
-    // Alternate voiced and silent frames to simulate syllable-like transitions
-    const int cycles = 40;
-    for (int i = 0; i < cycles; ++i) {
-        results = analyzer.analyze(voiced_frame.data(), frame_samples, 0.05f);
-        results = analyzer.analyze(silent_frame.data(), frame_samples, 0.0f);
+    for (size_t offset = 0; offset < sequence.size(); offset += frame_samples) {
+        results = analyzer.analyze(sequence.data() + offset, frame_samples, offset % (2 * frame_samples) ? 0.0f : 0.05f);
     }
 
-    if (results.speech_rate < 3.0f || results.speech_rate > 6.0f) {
-        return 201;
-    }
-
-    return 0;
+    EXPECT_GE(results.speech_rate, 3.0f);
+    EXPECT_LE(results.speech_rate, 6.0f);
 }
 
 } // namespace
+} // namespace yvc::test
 
-int main() {
-    if (int result = runAnalyzerEngineSmokeTest(); result != 0) {
-        return result;
-    }
-
-    if (int result = runAnalyzerEngineMultipleBlocksTest(); result != 0) {
-        return result;
-    }
-
-    if (int result = runVADAnalyzerSustainedSpeechRateTest(); result != 0) {
-        return result;
-    }
-
-    return 0;
-}
+INSTANTIATE_TEST_SUITE_P(AllPerformanceModes,
+                         yvc::test::AnalyzerEngineFixture,
+                         ::testing::Values(yvc::PerformanceMode::Light,
+                                           yvc::PerformanceMode::Standard,
+                                           yvc::PerformanceMode::Diagnostic));

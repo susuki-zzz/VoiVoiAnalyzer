@@ -40,6 +40,34 @@ set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Build JUCE examples" FORCE)
 # Add cmake modules
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
+# Enable testing infrastructure early so subdirectories can consume it
+if(BUILD_TESTING)
+    include(CTest)
+    find_package(GTest QUIET)
+
+    if(GTest_FOUND)
+        set(YVC_GTEST_MAIN_TARGET GTest::gtest_main CACHE INTERNAL "GTest main target")
+        set(YVC_GTEST_TARGET GTest::gtest CACHE INTERNAL "GTest target")
+    else()
+        include(FetchContent)
+
+        FetchContent_Declare(
+            googletest
+            URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
+        )
+
+        # Prevent overriding the parent project's compiler/linker settings on Windows
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+        FetchContent_MakeAvailable(googletest)
+
+        set(YVC_GTEST_MAIN_TARGET gtest_main CACHE INTERNAL "GTest main target")
+        set(YVC_GTEST_TARGET gtest CACHE INTERNAL "GTest target")
+    endif()
+
+    enable_testing()
+endif()
+
 # Third-party dependencies
 add_subdirectory(third_party)
 
@@ -55,9 +83,6 @@ endif()
 if(BUILD_YVC_OFFLINE)
     add_subdirectory(yvc_offline)
 endif()
-
-# Enable testing
-enable_testing()
 
 # CPack configuration for packaging (alternative to packagePresets)
 include(CPack)

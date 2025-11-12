@@ -141,7 +141,7 @@ if(JUCE_FOUND)
             JUCE_DISPLAY_SPLASH_SCREEN=0
             JUCE_USE_DARK_SPLASH_SCREEN=1
     )
-    
+
     # Platform-specific settings
     if(WIN32)
         target_compile_definitions(yvc_app PRIVATE JUCE_WIN32=1)
@@ -150,7 +150,34 @@ if(JUCE_FOUND)
     elseif(UNIX)
         target_compile_definitions(yvc_app PRIVATE JUCE_LINUX=1)
     endif()
-    
+
+    if(BUILD_TESTING)
+        if(NOT YVC_GTEST_MAIN_TARGET)
+            message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
+        endif()
+
+        include(GoogleTest)
+        add_executable(yvc_app_tests
+            tests/PresetManagerTests.cpp
+        )
+
+        target_link_libraries(yvc_app_tests
+            PRIVATE
+                ${YVC_GTEST_MAIN_TARGET}
+                juce::juce_core
+                juce::juce_gui_basics
+                yvc_core
+        )
+
+        target_include_directories(yvc_app_tests
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                ${CMAKE_SOURCE_DIR}/yvc_core/include
+        )
+
+        gtest_discover_tests(yvc_app_tests)
+    endif()
+
 else()
     message(WARNING "JUCE not available - creating stub application")
     message(STATUS "To build with JUCE, install JUCE 7.0+ or ensure internet connection for download")

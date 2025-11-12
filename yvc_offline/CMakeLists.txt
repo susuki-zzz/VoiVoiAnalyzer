@@ -3,8 +3,6 @@
 
 project(yvc_offline VERSION 0.1.0 LANGUAGES CXX)
 
-include(CTest)
-
 # Offline analysis tool sources
 set(YVC_OFFLINE_SOURCES
     src/main.cpp
@@ -31,8 +29,12 @@ target_link_libraries(yvc_offline
         yvc_core
 )
 
+include(CTest)
+
 # Unit tests
 if(BUILD_TESTING)
+    include(GoogleTest)
+
     add_executable(yvc_offline_tests
         tests/FileProcessorTests.cpp
         src/FileProcessor.cpp
@@ -43,12 +45,17 @@ if(BUILD_TESTING)
             ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
 
+    if(NOT YVC_GTEST_MAIN_TARGET)
+        message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
+    endif()
+
     target_link_libraries(yvc_offline_tests
         PRIVATE
             yvc_core
+            ${YVC_GTEST_MAIN_TARGET}
     )
 
-    add_test(NAME yvc_offline_tests COMMAND yvc_offline_tests)
+    gtest_discover_tests(yvc_offline_tests)
 endif()
 
 # Windows-specific settings
