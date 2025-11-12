@@ -3,8 +3,6 @@
 
 project(yvc_core VERSION 0.1.0 LANGUAGES CXX)
 
-include(CTest)
-
 # Core library sources
 set(YVC_CORE_SOURCES
     src/AudioBuffer.cpp
@@ -71,40 +69,54 @@ target_link_libraries(yvc_core
         Threads::Threads
 )
 
+include(CTest)
+
 # Unit tests
 if(BUILD_TESTING)
+    include(GoogleTest)
+
     add_executable(yvc_core_tests
         tests/AnalyzerEngineTests.cpp
+        tests/AudioBufferTests.cpp
+        tests/CPPAnalyzerTests.cpp
+        tests/MetricsBusTests.cpp
+        tests/PerformanceModeTests.cpp
+        tests/PreprocessChainTests.cpp
+        tests/RamOnlyStorageTests.cpp
+        tests/SessionPersistenceTests.cpp
+        tests/ApiKeyVaultTests.cpp
+        tests/MetricsOnlyCoachProviderTests.cpp
+        tests/LoggerTests.cpp
+        tests/TestSignalHelpers.h
     )
+
+    if(NOT YVC_GTEST_MAIN_TARGET)
+        message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
+    endif()
 
     target_link_libraries(yvc_core_tests
         PRIVATE
             yvc_core
+            ${YVC_GTEST_MAIN_TARGET}
     )
 
-    add_test(NAME yvc_core_tests COMMAND yvc_core_tests)
-
-    add_executable(yvc_core_cpp_tests
-        tests/CPPAnalyzerTests.cpp
-    )
-
-    target_link_libraries(yvc_core_cpp_tests
+    target_include_directories(yvc_core_tests
         PRIVATE
-            yvc_core
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests
     )
 
-    add_test(NAME yvc_core_cpp_tests COMMAND yvc_core_cpp_tests)
+    gtest_discover_tests(yvc_core_tests)
 
     # Logger examples/tests
     add_executable(yvc_logger_examples
         tests/LoggerExamples.cpp
     )
-    
+
     target_link_libraries(yvc_logger_examples
         PRIVATE
             yvc_core
     )
-    
+
     # Not added to CTest as it's more of an example program
 endif()
 
@@ -125,9 +137,3 @@ else()
     target_compile_options(yvc_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-enable_testing()
-
-add_executable(yvc_core_ram_only_tests tests/RamOnlyStorageTests.cpp)
-# Link Threads in tests transitively via yvc_core
-target_link_libraries(yvc_core_ram_only_tests PRIVATE yvc_core)
-add_test(NAME RamOnlyStorageNoDisk COMMAND yvc_core_ram_only_tests)
