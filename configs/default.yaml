@@ -1,0 +1,153 @@
+# VoiVoiAnalyzer Default Configuration
+# Based on YunoVoiceCoach specification
+
+# Audio I/O Configuration
+io:
+  # Sample rate: "auto" for automatic (prefer 48kHz), or specific rate
+  # On first launch: Use 48kHz if supported, otherwise device default
+  # User can change in Settings (requires reinitialization)
+  sample_rate: "auto"
+  
+  device_id: "default"
+  
+  # Buffer size per platform (fixed by user in settings)
+  buffer_size:
+    windows: 256
+    android: "burst*2"  # Android specific: burst size * 2
+    ios: 128
+  
+  channels: 1  # Mono analysis
+
+# Recording Limits
+limits:
+  # Maximum live recording duration
+  live_max_minutes:
+    desktop: 60   # 1 hour for desktop
+    mobile: 15    # 15 minutes for mobile
+  
+  # RAM budget for live recording
+  # 1h @ 48kHz = ~659 MiB, 15m @ 48kHz = ~165 MiB
+  max_ram_mb: 1024
+
+# Rendering Configuration
+render:
+  # FPS auto-degradation steps (drawing only, not analysis)
+  max_draw_hz_steps: [60, 45, 30]
+  
+  # Show FPS indicator in status bar
+  fps_indicator: true
+
+# Auto-degradation Settings
+degrade:
+  # Only degrade drawing FPS, never change audio buffer or analysis
+  draw_only: true
+  
+  # No toast notifications on degradation
+  silent: true
+
+# Preprocessing Chain
+# Note: Analysis always uses DRY signal
+# Preprocessing affects monitoring/recording paths only
+preprocess:
+  chain:
+    - name: "HighPass"
+      enabled: true
+      params:
+        cut_hz: 90
+        q: 0.7
+      apply_to: ["monitor"]  # Apply to monitoring output only
+    
+    - name: "GentleGate"
+      enabled: true
+      params:
+        thresh_db: -55
+        ratio: 2.0
+      apply_to: ["monitor"]  # Apply to monitoring output only
+
+# Performance Modes
+modes:
+  light:
+    target_latency_ms: 40
+    hop_ms: 10
+    draw_hz: 30
+    fft_size: 1024
+    hop_size: 512
+  
+  normal:
+    target_latency_ms: 60
+    hop_ms: 10
+    draw_hz: 45
+    fft_size: 2048
+    hop_size: 512
+  
+  diagnostic:
+    target_latency_ms: 80
+    hop_ms: 20
+    draw_hz: 30
+    fft_size: 4096
+    hop_size: 1024
+
+# Fixed Presets (MVP - not editable by user)
+presets:
+  natural_conversation:
+    meters: ["F0Gauge", "CPP", "HNR", "SpectralTilt", "SpeechRate", "Pause"]
+    targets:
+      f0_hz: [170, 230]  # Target F0 range for natural conversation
+  
+  phone_training:
+    meters: ["F0Gauge", "Timing", "Intelligibility", "SpectralTilt"]
+    targets:
+      f0_hz: [150, 250]
+  
+  resonance_focus:
+    meters: ["SpectralTilt", "SCentroid", "F0Gauge", "CPP"]
+    targets:
+      spectral_tilt_db_oct: [-6, -3]
+  
+  diagnostic:
+    meters: ["F0Track", "RMS", "CPP", "HNR", "LTAS"]
+
+# AI Coach Configuration (Optional)
+coach:
+  # Disabled by default - user must enable and provide API key
+  enabled: false
+  
+  # Provider: "openai" (more providers can be added)
+  provider: "openai"
+  
+  # NEVER send audio - only metrics
+  send_audio: false
+  
+  # Minimum interval between advice requests (rate limiting)
+  advice_interval_ms: 2000
+
+# Save/Export Settings
+save:
+  # Auto-save on stop
+  autosave_on_stop: false
+  
+  # Auto-save when reaching max length
+  autosave_on_limit: false
+  
+  # Export formats
+  formats:
+    audio: "wav32f"  # 32-bit float WAV
+    metrics: ["csv", "parquet"]  # Metrics export formats
+    session: "json"  # Session metadata
+
+# Acceptance Criteria (for testing/validation)
+acceptance:
+  # Target platform: Ryzen 5 3600XT + RTX 2060 (or equivalent)
+  benchmark:
+    duration_minutes: 60  # 1 hour continuous run
+    
+    # Targets for normal mode
+    normal_mode:
+      p95_latency_ms: 60
+      xruns: 0
+      cpu_percent_max: 12
+      ram_mb_max: 1024
+    
+    # Sample rate handling
+    sr_auto_prefer: 48000  # Prefer 48kHz on first launch
+    sr_fallback: "device"  # Use device SR if 48kHz unavailable

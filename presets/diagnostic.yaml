@@ -1,0 +1,64 @@
+# Diagnostic Preset
+# Full analysis for detailed voice assessment
+
+name: "Diagnostic"
+description: "Complete voice analysis with all available metrics"
+
+# Meters to display (all available)
+meters:
+  - F0Track
+  - RMS
+  - Peak
+  - Crest
+  - CPP
+  - HNR
+  - SpectralTilt
+  - SCentroid
+  - VAD
+  - SpeechRate
+  - Pause
+  - LTAS  # Long-term average spectrum
+
+# Target ranges (diagnostic reference values)
+targets:
+  f0_hz:
+    min: 80
+    max: 400
+  
+  rms_db:
+    min: -40
+    max: -10
+  
+  cpp_db:
+    min: 5.0
+    optimal: 8.0
+  
+  hnr_db:
+    min: 10.0
+    optimal: 15.0
+  
+  spectral_tilt_db_oct:
+    min: -10.0
+    max: 0.0
+
+# Visualization settings
+visualization:
+  heatmap:
+    enabled: true
+    metrics: ["F0", "RMS", "CPP", "HNR"]
+  
+  spectral_display:
+    full_range: true
+    show_harmonics: true
+  
+  waveform:
+    enabled: true
+
+# Performance mode recommendation
+recommended_mode: "diagnostic"
+
+# Additional diagnostic features
+diagnostic:
+  track_all_metrics: true
+  detailed_logging: true
+  export_raw_data: true

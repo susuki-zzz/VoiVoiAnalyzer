@@ -1,0 +1,42 @@
+# Phone Training Preset
+# Optimized for phone conversation clarity
+
+name: "Phone Training"
+description: "Focus on clarity and intelligibility for phone calls"
+
+# Meters to display
+meters:
+  - F0Gauge
+  - Timing
+  - Intelligibility
+  - SpectralTilt
+
+# Target ranges (adjusted for phone bandwidth)
+targets:
+  f0_hz:
+    min: 150
+    max: 250
+    optimal: 200
+  
+  spectral_tilt_db_oct:
+    min: -8.0
+    max: -2.0
+    optimal: -4.0
+  
+  # Phone typically emphasizes 300-3400 Hz
+  s_centroid_hz:
+    min: 3000
+    max: 5000
+
+# Visualization settings
+visualization:
+  heatmap:
+    enabled: true
+    metrics: ["F0", "SpectralTilt"]
+  
+  spectral_display:
+    highlight_phone_band: true
+    frequency_range: [300, 3400]
+
+# Performance mode recommendation
+recommended_mode: "normal"
