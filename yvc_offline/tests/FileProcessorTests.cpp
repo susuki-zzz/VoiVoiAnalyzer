@@ -87,6 +87,10 @@ int main() {
     const auto csv_path = uniqueTempFile("yvc_offline_test", ".csv");
     auto summary_path = csv_path;
     summary_path.replace_extension(".summary.json");
+    auto anomalies_path = csv_path;
+    anomalies_path.replace_extension(".anomalies.json");
+    auto heatmap_path = csv_path;
+    heatmap_path.replace_extension(".heatmap.csv");
 
     writeTestWav(wav_path, sample_rate, duration_seconds);
 
@@ -97,6 +101,8 @@ int main() {
         std::filesystem::remove(wav_path);
         std::filesystem::remove(csv_path);
         std::filesystem::remove(summary_path);
+        std::filesystem::remove(anomalies_path);
+        std::filesystem::remove(heatmap_path);
         return 1;
     }
 
@@ -117,10 +123,28 @@ int main() {
         return 5;
     }
 
+    if (!std::filesystem::exists(anomalies_path)) {
+        return 6;
+    }
+
+    if (!fileContains(anomalies_path, "\"anomalies\"")) {
+        return 7;
+    }
+
+    if (!std::filesystem::exists(heatmap_path)) {
+        return 8;
+    }
+
+    if (!fileContains(heatmap_path, "chunk_index")) {
+        return 9;
+    }
+
     // Clean up temporary files
     std::filesystem::remove(wav_path);
     std::filesystem::remove(csv_path);
     std::filesystem::remove(summary_path);
+    std::filesystem::remove(anomalies_path);
+    std::filesystem::remove(heatmap_path);
 
     return 0;
 }

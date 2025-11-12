@@ -11,6 +11,41 @@
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <sstream>
+#include <vector>
+
+#include <yvc_core/PerformanceMode.h>
+
+namespace {
+
+std::string escapeJsonString(const std::string& input) {
+    std::ostringstream escaped;
+    for (char c : input) {
+        switch (c) {
+        case '\\':
+            escaped << "\\\\";
+            break;
+        case '"':
+            escaped << "\\\"";
+            break;
+        case '\n':
+            escaped << "\\n";
+            break;
+        case '\r':
+            escaped << "\\r";
+            break;
+        case '\t':
+            escaped << "\\t";
+            break;
+        default:
+            escaped << c;
+            break;
+        }
+    }
+    return escaped.str();
+}
+
+} // namespace
 #include <vector>
 
 #include <yvc_core/PerformanceMode.h>
@@ -91,6 +126,15 @@ bool FileProcessor::processFile(const std::string& input_path, const std::string
         }
     }
 
+    const auto anomalies = detectAnomalies();
+    const SummaryStats summary = computeSummary(sample_rate, audio_samples.size(), anomalies);
+    const auto heatmap = buildHeatmap();
+
+    const bool csv_written = writeResults(output_path);
+    const bool summary_written = writeSummary(output_path, summary);
+    const bool anomaly_written = writeAnomalies(output_path, anomalies);
+    const bool heatmap_written = writeHeatmap(output_path, heatmap);
+    return csv_written && summary_written && anomaly_written && heatmap_written;
     const SummaryStats summary = computeSummary(sample_rate, audio_samples.size());
 
     const bool csv_written = writeResults(output_path);
@@ -135,7 +179,12 @@ AnalysisResults FileProcessor::processChunk(const Sample* samples, size_t num_sa
 }
 
 bool FileProcessor::writeResults(const std::string& output_path) {
-    std::ofstream out(output_path);
+    std::filesystem::path base_path(output_path);
+    if (base_path.has_parent_path()) {
+        std::filesystem::create_directories(base_path.parent_path());
+    }
+
+    std::ofstream out(base_path);
     if (!out.is_open()) {
         std::cerr << "Failed to open output file: " << output_path << std::endl;
         return false;
@@ -165,7 +214,370 @@ bool FileProcessor::writeResults(const std::string& output_path) {
     }
 
     out.close();
-    std::cout << "Results written to: " << output_path << std::endl;
+    std::cout << "Results written to: " << base_path << std::endl;
+    return true;
+}
+
+bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate) {
+    std::ifstream in(input_path, std::ios::binary);
+    if (!in.is_open()) {
+        std::cerr << "Failed to open input file: " << input_path << std::endl;
+        return false;
+    }
+
+    auto readFourCC = [](const std::array<char, 4>& tag) {
+        return std::string(tag.begin(), tag.end());
+    };
+
+    std::array<char, 4> chunk_id{};
+    std::array<char, 4> format{};
+    uint32_t chunk_size = 0;
+
+    in.read(chunk_id.data(), 4);
+    in.read(reinterpret_cast<char*>(&chunk_size), sizeof(chunk_size));
+    in.read(format.data(), 4);
+    if (!in || readFourCC(chunk_id) != "RIFF" || readFourCC(format) != "WAVE") {
+        std::cerr << "Unsupported or corrupt WAV file: " << input_path << std::endl;
+        return false;
+    }
+
+    bool fmt_found = false;
+    bool data_found = false;
+    uint16_t audio_format = 0;
+    uint16_t num_channels = 0;
+    uint16_t bits_per_sample = 0;
+    uint32_t byte_rate = 0;
+    uint16_t block_align = 0;
+    std::vector<char> data_chunk;
+
+    while (in && !(fmt_found && data_found)) {
+        if (!in.read(chunk_id.data(), 4)) {
+            break;
+        }
+        if (!in.read(reinterpret_cast<char*>(&chunk_size), sizeof(chunk_size))) {
+            break;
+        }
+
+        if (readFourCC(chunk_id) == "fmt ") {
+            std::vector<char> fmt_data(chunk_size);
+            if (!in.read(fmt_data.data(), fmt_data.size())) {
+                std::cerr << "Failed to read fmt chunk" << std::endl;
+                return false;
+            }
+
+            std::memcpy(&audio_format, fmt_data.data(), sizeof(audio_format));
+            std::memcpy(&num_channels, fmt_data.data() + 2, sizeof(num_channels));
+            std::memcpy(&sample_rate, fmt_data.data() + 4, sizeof(sample_rate));
+            std::memcpy(&byte_rate, fmt_data.data() + 8, sizeof(byte_rate));
+            std::memcpy(&block_align, fmt_data.data() + 12, sizeof(block_align));
+            std::memcpy(&bits_per_sample, fmt_data.data() + 14, sizeof(bits_per_sample));
+
+            fmt_found = true;
+
+            const size_t remaining = chunk_size > fmt_data.size() ? chunk_size - fmt_data.size() : 0;
+            if (remaining > 0) {
+                in.seekg(static_cast<std::streamoff>(remaining), std::ios::cur);
+            }
+        } else if (readFourCC(chunk_id) == "data") {
+            data_chunk.resize(chunk_size);
+            if (!in.read(data_chunk.data(), data_chunk.size())) {
+                std::cerr << "Failed to read data chunk" << std::endl;
+                return false;
+            }
+            data_found = true;
+        } else {
+            in.seekg(static_cast<std::streamoff>(chunk_size), std::ios::cur);
+        }
+
+        if (chunk_size % 2 == 1) {
+            in.seekg(1, std::ios::cur);  // Padding byte for word alignment
+        }
+    }
+
+    if (!fmt_found || !data_found) {
+        std::cerr << "Incomplete WAV file: " << input_path << std::endl;
+        return false;
+    }
+
+    if (num_channels == 0 || block_align == 0) {
+        std::cerr << "Invalid WAV channel configuration" << std::endl;
+        return false;
+    }
+
+    if (audio_format != 1 && audio_format != 3) {
+        std::cerr << "Unsupported WAV encoding (only PCM and IEEE float supported)" << std::endl;
+        return false;
+    }
+
+    const size_t frame_count = data_chunk.size() / block_align;
+    if (frame_count == 0) {
+        return true;
+    }
+
+    samples.resize(frame_count);
+    const char* data_ptr = data_chunk.data();
+    const double int16_scale = 1.0 / 32768.0;
+    const double int24_scale = 1.0 / 8388608.0;
+    const double int32_scale = 1.0 / 2147483648.0;
+
+    for (size_t frame = 0; frame < frame_count; ++frame) {
+        double accumulator = 0.0;
+        for (uint16_t channel = 0; channel < num_channels; ++channel) {
+            double sample_value = 0.0;
+            if (audio_format == 3 && bits_per_sample == 32) {
+                float value = 0.0f;
+                std::memcpy(&value, data_ptr, sizeof(value));
+                data_ptr += sizeof(value);
+                sample_value = static_cast<double>(value);
+            } else if (bits_per_sample == 8) {
+                const uint8_t value = static_cast<uint8_t>(*data_ptr++);
+                sample_value = (static_cast<double>(value) - 128.0) / 128.0;
+            } else if (bits_per_sample == 16) {
+                int16_t value = 0;
+                std::memcpy(&value, data_ptr, sizeof(value));
+                data_ptr += sizeof(value);
+                sample_value = static_cast<double>(value) * int16_scale;
+            } else if (bits_per_sample == 24) {
+                int32_t value = static_cast<uint8_t>(data_ptr[0]) |
+                                (static_cast<uint8_t>(data_ptr[1]) << 8) |
+                                (static_cast<uint8_t>(data_ptr[2]) << 16);
+                if (value & 0x800000) {
+                    value |= ~0xFFFFFF;
+                }
+                data_ptr += 3;
+                sample_value = static_cast<double>(value) * int24_scale;
+            } else if (bits_per_sample == 32) {
+                int32_t value = 0;
+                std::memcpy(&value, data_ptr, sizeof(value));
+                data_ptr += sizeof(value);
+                sample_value = static_cast<double>(value) * int32_scale;
+            } else {
+                std::cerr << "Unsupported bits per sample: " << bits_per_sample << std::endl;
+                return false;
+            }
+
+            accumulator += sample_value;
+        }
+
+        const double averaged = accumulator / static_cast<double>(num_channels);
+        samples[frame] = static_cast<Sample>(std::clamp(averaged, -1.0, 1.0));
+    }
+
+    return true;
+}
+
+FileProcessor::SummaryStats FileProcessor::computeSummary(SampleRate sample_rate,
+                                                         size_t processed_samples,
+                                                         const std::vector<Anomaly>& anomalies) const {
+    SummaryStats summary;
+    summary.sample_rate = sample_rate;
+    summary.chunk_count = results_.size();
+    summary.duration_seconds = sample_rate > 0 ? static_cast<double>(processed_samples) / static_cast<double>(sample_rate) : 0.0;
+    summary.anomaly_count = anomalies.size();
+
+    double f0_sum = 0.0;
+    double rms_sum = 0.0;
+    double cpp_sum = 0.0;
+    double hnr_sum = 0.0;
+    double tilt_sum = 0.0;
+    double centroid_sum = 0.0;
+    double speech_rate_sum = 0.0;
+    double pause_ratio_sum = 0.0;
+    double voice_active_sum = 0.0;
+    double peak_max = std::numeric_limits<double>::lowest();
+
+    for (const auto& result : results_) {
+        if (result.f0_valid) {
+            f0_sum += result.f0;
+            summary.f0_measurements++;
+        }
+        rms_sum += result.rms;
+        cpp_sum += result.cpp;
+        hnr_sum += result.hnr;
+        tilt_sum += result.spectral_tilt;
+        centroid_sum += result.s_centroid;
+        speech_rate_sum += result.speech_rate;
+        pause_ratio_sum += result.pause_ratio;
+        voice_active_sum += result.voice_active ? 1.0 : 0.0;
+        peak_max = std::max(peak_max, static_cast<double>(result.peak));
+    }
+
+    if (summary.chunk_count > 0) {
+        const double denom = static_cast<double>(summary.chunk_count);
+        summary.average_rms = rms_sum / denom;
+        summary.average_cpp = cpp_sum / denom;
+        summary.average_hnr = hnr_sum / denom;
+        summary.average_spectral_tilt = tilt_sum / denom;
+        summary.average_s_centroid = centroid_sum / denom;
+        summary.average_speech_rate = speech_rate_sum / denom;
+        summary.average_pause_ratio = pause_ratio_sum / denom;
+        summary.voice_activity_ratio = voice_active_sum / denom;
+    }
+
+    if (summary.f0_measurements > 0) {
+        summary.average_f0 = f0_sum / static_cast<double>(summary.f0_measurements);
+    }
+
+    if (summary.chunk_count > 0) {
+        summary.max_peak = peak_max;
+    } else {
+        summary.max_peak = 0.0;
+    }
+
+    return summary;
+}
+
+bool FileProcessor::writeSummary(const std::string& output_path, const SummaryStats& summary) const {
+    std::filesystem::path base_path(output_path);
+    base_path.replace_extension(".summary.json");
+
+    if (base_path.has_parent_path()) {
+        std::filesystem::create_directories(base_path.parent_path());
+    }
+
+    std::ofstream out(base_path);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open summary file: " << base_path << std::endl;
+        return false;
+    }
+
+    out << std::fixed << std::setprecision(6);
+    out << "{\n";
+    out << "  \"sample_rate\": " << summary.sample_rate << ",\n";
+    out << "  \"duration_seconds\": " << summary.duration_seconds << ",\n";
+    out << "  \"chunks\": " << summary.chunk_count << ",\n";
+    out << "  \"f0_measurements\": " << summary.f0_measurements << ",\n";
+    out << "  \"average_f0\": " << summary.average_f0 << ",\n";
+    out << "  \"average_rms\": " << summary.average_rms << ",\n";
+    out << "  \"max_peak\": " << summary.max_peak << ",\n";
+    out << "  \"average_cpp\": " << summary.average_cpp << ",\n";
+    out << "  \"average_hnr\": " << summary.average_hnr << ",\n";
+    out << "  \"average_spectral_tilt\": " << summary.average_spectral_tilt << ",\n";
+    out << "  \"average_s_centroid\": " << summary.average_s_centroid << ",\n";
+    out << "  \"average_speech_rate\": " << summary.average_speech_rate << ",\n";
+    out << "  \"average_pause_ratio\": " << summary.average_pause_ratio << ",\n";
+    out << "  \"voice_activity_ratio\": " << summary.voice_activity_ratio << ",\n";
+    out << "  \"anomaly_count\": " << summary.anomaly_count << "\n";
+    out << "}\n";
+
+    std::cout << "Summary written to: " << base_path << std::endl;
+    return true;
+}
+
+std::vector<FileProcessor::Anomaly> FileProcessor::detectAnomalies() const {
+    std::vector<Anomaly> anomalies;
+    anomalies.reserve(results_.size());
+
+    const float kSilenceRmsThreshold = 0.01f;
+    const float kLowCppThreshold = 5.0f;
+    const float kLowHnrThreshold = 0.0f;
+    const float kHighPauseRatio = 0.6f;
+
+    for (const auto& result : results_) {
+        if (!result.voice_active && result.rms < kSilenceRmsThreshold) {
+            anomalies.push_back({"Silence", result.timestamp, "Voice activity was not detected in this window.", static_cast<double>(result.rms)});
+        }
+
+        if (result.f0_valid && (result.f0 < 50.0f || result.f0 > 500.0f)) {
+            anomalies.push_back({"PitchOutOfRange", result.timestamp, "Fundamental frequency fell outside the expected range (50-500 Hz).", static_cast<double>(result.f0)});
+        }
+
+        if (result.cpp < kLowCppThreshold) {
+            anomalies.push_back({"LowCPP", result.timestamp, "Cepstral peak prominence indicates reduced voice clarity.", static_cast<double>(result.cpp)});
+        }
+
+        if (result.hnr < kLowHnrThreshold) {
+            anomalies.push_back({"LowHNR", result.timestamp, "Harmonics-to-noise ratio suggests noisy phonation.", static_cast<double>(result.hnr)});
+        }
+
+        if (result.pause_ratio > kHighPauseRatio) {
+            anomalies.push_back({"HighPauseRatio", result.timestamp, "Detected extended pauses relative to speech activity.", static_cast<double>(result.pause_ratio)});
+        }
+    }
+
+    return anomalies;
+}
+
+bool FileProcessor::writeAnomalies(const std::string& output_path, const std::vector<Anomaly>& anomalies) const {
+    std::filesystem::path base_path(output_path);
+    base_path.replace_extension(".anomalies.json");
+
+    if (base_path.has_parent_path()) {
+        std::filesystem::create_directories(base_path.parent_path());
+    }
+
+    std::ofstream out(base_path);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open anomalies file: " << base_path << std::endl;
+        return false;
+    }
+
+    out << std::fixed << std::setprecision(6);
+    out << "{\n";
+    out << "  \"anomalies\": [\n";
+    for (size_t i = 0; i < anomalies.size(); ++i) {
+        const auto& anomaly = anomalies[i];
+        out << "    {\n";
+        out << "      \"type\": \"" << escapeJsonString(anomaly.type) << "\",\n";
+        out << "      \"timestamp\": " << anomaly.timestamp << ",\n";
+        out << "      \"description\": \"" << escapeJsonString(anomaly.description) << "\",\n";
+        out << "      \"score\": " << anomaly.score << "\n";
+        out << "    }";
+        if (i + 1 < anomalies.size()) {
+            out << ",";
+        }
+        out << "\n";
+    }
+    out << "  ]\n";
+    out << "}\n";
+
+    std::cout << "Anomalies written to: " << base_path << std::endl;
+    return true;
+}
+
+std::vector<FileProcessor::HeatmapPoint> FileProcessor::buildHeatmap() const {
+    std::vector<HeatmapPoint> heatmap;
+    heatmap.reserve(results_.size());
+
+    for (size_t i = 0; i < results_.size(); ++i) {
+        const auto& result = results_[i];
+        heatmap.push_back({i,
+                           result.timestamp,
+                           result.f0,
+                           result.rms,
+                           result.speech_rate,
+                           result.cpp});
+    }
+
+    return heatmap;
+}
+
+bool FileProcessor::writeHeatmap(const std::string& output_path, const std::vector<HeatmapPoint>& heatmap) const {
+    std::filesystem::path base_path(output_path);
+    base_path.replace_extension(".heatmap.csv");
+
+    if (base_path.has_parent_path()) {
+        std::filesystem::create_directories(base_path.parent_path());
+    }
+
+    std::ofstream out(base_path);
+    if (!out.is_open()) {
+        std::cerr << "Failed to open heatmap file: " << base_path << std::endl;
+        return false;
+    }
+
+    out << "chunk_index,timestamp,f0,rms,speech_rate,cpp\n";
+    out << std::fixed << std::setprecision(6);
+    for (const auto& point : heatmap) {
+        out << point.index << ","
+            << point.timestamp << ","
+            << point.f0 << ","
+            << point.rms << ","
+            << point.speech_rate << ","
+            << point.cpp << "\n";
+    }
+
+    std::cout << "Heatmap written to: " << base_path << std::endl;
     return true;
 }
 
