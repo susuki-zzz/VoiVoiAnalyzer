@@ -27,7 +27,8 @@ void SettingsDialog::showDialog(const AppSettings& currentSettings, juce::Compon
     options.resizable = false;
     options.dialogBackgroundColour = juce::Colours::darkgrey;
     
-    options.runModal();
+    // Use launchAsync instead of runModal for compatibility
+    options.launchAsync();
 }
 
 SettingsDialog::SettingsDialog(const AppSettings& currentSettings, OnClose onClose)
@@ -76,7 +77,7 @@ SettingsDialog::SettingsDialog(const AppSettings& currentSettings, OnClose onClo
     maxRecordingSlider_.setRange(60.0, 3600.0, 60.0);
     maxRecordingSlider_.setValue(workingCopy_.maxRecordingTimeSeconds, juce::dontSendNotification);
     maxRecordingSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
-    maxRecordingSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60);
+    maxRecordingSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 20);
     maxRecordingSlider_.setNumDecimalPlacesToDisplay(0);
     
     // Configure language selection
@@ -180,20 +181,41 @@ void SettingsDialog::createTabbedInterface() {
     
     // Layout components in tabs
     auto layoutTab = [](juce::Component* tab, std::vector<std::pair<juce::Component*, juce::Component*>> items) {
-        tab->resized = [tab, items]() {
-            auto bounds = tab->getLocalBounds().reduced(kMargin);
-            for (auto& item : items) {
-                auto row = bounds.removeFromTop(kRowHeight);
-                if (item.first) {
-                    item.first->setBounds(row.removeFromLeft(150));
-                    row.removeFromLeft(10);
+        // Create a custom component that handles resizing
+        class TabLayoutComponent : public juce::Component {
+        public:
+            TabLayoutComponent(std::vector<std::pair<juce::Component*, juce::Component*>> items) : items_(std::move(items)) {}
+            
+            void resized() override {
+                auto bounds = getLocalBounds().reduced(kMargin);
+                for (auto& item : items_) {
+                    auto row = bounds.removeFromTop(kRowHeight);
+                    if (item.first) {
+                        item.first->setBounds(row.removeFromLeft(150));
+                        row.removeFromLeft(10);
+                    }
+                    if (item.second) {
+                        item.second->setBounds(row);
+                    }
+                    bounds.removeFromTop(5); // spacing
                 }
-                if (item.second) {
-                    item.second->setBounds(row);
-                }
-                bounds.removeFromTop(5); // spacing
             }
+            
+        private:
+            std::vector<std::pair<juce::Component*, juce::Component*>> items_;
         };
+        
+        // Replace the tab content with our layout component
+        auto* layoutComp = new TabLayoutComponent(std::move(items));
+        
+        // Transfer child components to layout component
+        for (int i = tab->getNumChildComponents() - 1; i >= 0; --i) {
+            auto* child = tab->getChildComponent(i);
+            tab->removeChildComponent(child);
+            layoutComp->addAndMakeVisible(child);
+        }
+        
+        tab->addAndMakeVisible(layoutComp);
     };
     
     layoutTab(audioTab, {

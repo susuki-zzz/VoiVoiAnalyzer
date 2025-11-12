@@ -3,52 +3,59 @@
 
 #pragma once
 
-#include <juce_core/juce_core.h>
+#ifdef JUCE_CORE_H_INCLUDED
+    #include <juce_gui_basics/juce_gui_basics.h>
+    #define USE_JUCE 1
+    #define TRANS(x) (yvc::app::LocalizationManager::getInstance().getString(x))
+#else
+    #define USE_JUCE 0
+    #include <string>
+    #define TRANS(x) (yvc::app::LocalizationManager::getInstance().getString(x))
+#endif
+
 #include <unordered_map>
-#include <string>
+#include <vector>
 
 namespace yvc::app {
 
-/**
- * @brief Manages multi-language support for the VoiVoi application
- * 
- * Provides runtime language switching with Japanese and English translations.
- * All UI strings are externalized through this system to support localization.
- */
 class LocalizationManager {
 public:
     enum class Language {
-        English,
-        Japanese
+        English = 0,
+        Japanese = 1
     };
 
     static LocalizationManager& getInstance();
 
-    // Set the current language
     void setLanguage(Language language);
     Language getCurrentLanguage() const { return currentLanguage_; }
 
-    // Get localized string by key
+#if USE_JUCE
     juce::String getString(const juce::String& key) const;
-
-    // Get available languages
-    std::vector<Language> getAvailableLanguages() const;
     juce::String getLanguageName(Language language) const;
+#else
+    std::string getString(const std::string& key) const;
+    std::string getLanguageName(Language language) const;
+#endif
 
-    // Save/load language preference
+    std::vector<Language> getAvailableLanguages() const;
+
     void saveLanguagePreference();
     void loadLanguagePreference();
 
 private:
     LocalizationManager();
+    ~LocalizationManager() = default;
+
+    // Disable copying
+    LocalizationManager(const LocalizationManager&) = delete;
+    LocalizationManager& operator=(const LocalizationManager&) = delete;
+
     void initializeTranslations();
     void loadLanguageData(Language language);
 
     Language currentLanguage_ = Language::English;
     std::unordered_map<std::string, std::string> translations_;
 };
-
-// Convenience macro for getting localized strings
-#define TRANS(key) LocalizationManager::getInstance().getString(key)
 
 } // namespace yvc::app

@@ -17,46 +17,15 @@
                 "lhs": "${hostSystemName}",
                 "rhs": "Windows"
             },
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
-            "toolset": {
-                "value": "host=x64",
-                "strategy": "external"
-            },
             "cacheVariables": {
-                "CMAKE_C_COMPILER": "cl.exe",
-                "CMAKE_CXX_COMPILER": "cl.exe",
                 "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
                 "CMAKE_CXX_EXTENSIONS": "OFF"
-            }
-        },
-        {
-            "name": "windows-vs-base",
-            "hidden": true,
-            "generator": "Visual Studio 17 2022",
-            "binaryDir": "${sourceDir}/out/build/${presetName}",
-            "installDir": "${sourceDir}/out/install/${presetName}",
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
             },
-            "architecture": {
-                "value": "x64",
-                "strategy": "set"
-            },
-            "toolset": {
-                "value": "host=x64",
-                "strategy": "set"
-            },
-            "cacheVariables": {
-                "CMAKE_CXX_STANDARD": "20",
-                "CMAKE_CXX_STANDARD_REQUIRED": "ON",
-                "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+            "vendor": {
+                "microsoft.com/VisualStudioSettings/CMake/1.0": {
+                    "hostOS": ["Windows"]
+                }
             }
         },
         {
@@ -68,8 +37,7 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "BUILD_YVC_APP": "ON",
                 "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus"
+                "USE_EIGEN": "OFF"
             }
         },
         {
@@ -81,171 +49,42 @@
                 "CMAKE_BUILD_TYPE": "Release",
                 "BUILD_YVC_APP": "ON",
                 "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus /O2"
-            }
-        },
-        {
-            "name": "vs2022-debug",
-            "displayName": "Visual Studio 2022 Debug",
-            "description": "Windows x64 Debug build for Visual Studio IDE",
-            "inherits": "windows-vs-base",
-            "cacheVariables": {
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus"
-            }
-        },
-        {
-            "name": "vs2022-release",
-            "displayName": "Visual Studio 2022 Release",
-            "description": "Windows x64 Release build for Visual Studio IDE", 
-            "inherits": "windows-vs-base",
-            "cacheVariables": {
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus /O2"
-            }
-        },
-        {
-            "name": "vs2022-relwithdebinfo",
-            "displayName": "Visual Studio 2022 RelWithDebInfo",
-            "description": "Windows x64 Release with Debug Info for Visual Studio profiling",
-            "inherits": "windows-vs-base",
-            "cacheVariables": {
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus /O2 /Zi"
-            }
-        },
-        {
-            "name": "x64-relwithdebinfo",
-            "displayName": "x64 RelWithDebInfo (Ninja)",
-            "description": "Windows x64 Release with Debug Info - optimal for profiling",
-            "inherits": "windows-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /permissive- /Zc:__cplusplus /O2 /Zi"
-            }
-        },
-        {
-            "name": "x64-core-only",
-            "displayName": "x64 Core Library Only",
-            "description": "Build only the core library (yvc_core) for integration",
-            "inherits": "windows-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_YVC_APP": "OFF",
-                "BUILD_YVC_OFFLINE": "OFF",
                 "USE_EIGEN": "OFF"
-            }
-        },
-        {
-            "name": "vs2022-core-only",
-            "displayName": "Visual Studio Core Only",
-            "description": "Build only yvc_core library for Visual Studio",
-            "inherits": "windows-vs-base",
-            "cacheVariables": {
-                "BUILD_YVC_APP": "OFF",
-                "BUILD_YVC_OFFLINE": "OFF",
-                "USE_EIGEN": "OFF"
-            }
-        },
-        {
-            "name": "x64-with-eigen",
-            "displayName": "x64 with Eigen Support",
-            "description": "Build with optional Eigen matrix operations support",
-            "inherits": "windows-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "ON"
-            }
-        },
-        {
-            "name": "x64-analysis",
-            "displayName": "x64 Static Analysis",
-            "description": "Build configuration for static analysis and code quality",
-            "inherits": "windows-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "BUILD_YVC_APP": "ON",
-                "BUILD_YVC_OFFLINE": "ON",
-                "USE_EIGEN": "OFF",
-                "CMAKE_CXX_FLAGS": "/W4 /WX /permissive- /Zc:__cplusplus /analyze"
             }
         }
     ],
     "buildPresets": [
         {
             "name": "x64-debug",
-            "displayName": "x64 Debug Build (Ninja)",
-            "description": "Build Debug configuration with Ninja",
+            "displayName": "x64 Debug Build",
+            "description": "Build Debug configuration",
             "configurePreset": "x64-debug",
             "configuration": "Debug",
-            "jobs": 0,
-            "targets": [
-                "ALL_BUILD"
-            ]
+            "jobs": 0
         },
         {
             "name": "x64-release",
-            "displayName": "x64 Release Build (Ninja)", 
-            "description": "Build Release configuration with Ninja",
+            "displayName": "x64 Release Build", 
+            "description": "Build Release configuration",
             "configurePreset": "x64-release",
             "configuration": "Release",
-            "jobs": 0,
-            "targets": [
-                "ALL_BUILD"
-            ]
-        },
+            "jobs": 0
+        }
+    ],
+    "testPresets": [
         {
-            "name": "vs2022-debug",
-            "displayName": "Visual Studio Debug Build",
-            "description": "Build Debug configuration for Visual Studio",
-            "configurePreset": "vs2022-debug",
+            "name": "core-tests",
+            "displayName": "Core Library Tests",
+            "description": "Run tests for core analysis library",
+            "configurePreset": "x64-debug",
             "configuration": "Debug",
-            "jobs": 0
-        },
-        {
-            "name": "vs2022-release",
-            "displayName": "Visual Studio Release Build", 
-            "description": "Build Release configuration for Visual Studio",
-            "configurePreset": "vs2022-release",
-            "configuration": "Release",
-            "jobs": 0
-        },
-        {
-            "name": "vs2022-relwithdebinfo",
-            "displayName": "Visual Studio RelWithDebInfo Build",
-            "description": "Build RelWithDebInfo configuration for Visual Studio",
-            "configurePreset": "vs2022-relwithdebinfo",
-            "configuration": "RelWithDebInfo",
-            "jobs": 0
-        },
-        {
-            "name": "x64-relwithdebinfo",
-            "displayName": "x64 RelWithDebInfo Build",
-            "description": "Build Release with Debug Info configuration",
-            "configurePreset": "x64-relwithdebinfo",
-            "configuration": "RelWithDebInfo",
-            "jobs": 0,
-            "targets": [
-                "ALL_BUILD"
-            ]
-        },
-        {
-            "name": "core-only",
-            "displayName": "Core Library Only",
-            "description": "Build only yvc_core library",
-            "configurePreset": "x64-core-only",
-            "configuration": "Release",
-            "jobs": 0,
-            "target
+            "output": {
+                "outputOnFailure": true
+            },
+            "execution": {
+                "noTestsAction": "error",
+                "stopOnFailure": false
+            }
+        }
+    ]
+}
