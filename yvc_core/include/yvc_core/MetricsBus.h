@@ -28,7 +28,13 @@ public:
     
     // Clear all metrics
     void clear();
-    
+
+    // Check if new metrics are available without consuming them
+    bool hasNewData() const;
+
+    // Get the most recently published metrics without consuming them
+    AnalysisResults getLatest() const;
+
 private:
     mutable std::mutex mutex_;
     AnalysisResults buffer_[2];  // Double buffer

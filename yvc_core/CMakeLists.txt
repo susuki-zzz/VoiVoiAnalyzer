@@ -3,6 +3,8 @@
 
 project(yvc_core VERSION 0.1.0 LANGUAGES CXX)
 
+include(CTest)
+
 # Core library sources
 set(YVC_CORE_SOURCES
     src/AudioBuffer.cpp
@@ -20,6 +22,7 @@ set(YVC_CORE_SOURCES
     src/SessionPersistence.cpp
     src/MetricsOnlyCoachProvider.cpp
     src/ApiKeyVault.cpp
+    src/AnalyzerEngine.cpp
 )
 
 # Core library headers
@@ -33,6 +36,7 @@ set(YVC_CORE_HEADERS
     include/yvc_core/VADAnalyzer.h
     include/yvc_core/PerformanceMode.h
     include/yvc_core/MetricsBus.h
+    include/yvc_core/AnalyzerEngine.h
     include/yvc_core/IAnalyzer.h
     include/yvc_core/IPreprocessor.h
     include/yvc_core/ICoachProvider.h
@@ -62,6 +66,20 @@ target_link_libraries(yvc_core
     PUBLIC
         kissfft
 )
+
+# Unit tests
+if(BUILD_TESTING)
+    add_executable(yvc_core_tests
+        tests/AnalyzerEngineTests.cpp
+    )
+
+    target_link_libraries(yvc_core_tests
+        PRIVATE
+            yvc_core
+    )
+
+    add_test(NAME yvc_core_tests COMMAND yvc_core_tests)
+endif()
 
 # Windows-specific settings
 if(WIN32)

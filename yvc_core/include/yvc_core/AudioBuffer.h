@@ -21,10 +21,13 @@ public:
     
     // Get the current buffer for analysis
     const std::vector<Sample>& getBuffer() const { return buffer_; }
-    
+
     // Check if buffer has enough samples for analysis
     bool hasEnoughSamples(size_t required_samples) const;
-    
+
+    // Consume samples from the front of the buffer after analysis
+    void consumeSamples(size_t num_samples);
+
     // Clear the buffer
     void clear();
     
