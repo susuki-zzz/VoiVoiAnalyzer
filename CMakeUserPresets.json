@@ -1,0 +1,81 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "dev-debug",
+            "displayName": "Development Debug (Ninja)",
+            "description": "Personal development build with extra debugging features",
+            "inherits": "x64-debug",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_VERBOSE_MAKEFILE": "ON",
+                "BUILD_TESTING": "ON"
+            },
+            "environment": {
+                "VCPKG_ROOT": "$env{VCPKG_ROOT}",
+                "PATH": "$env{PATH}"
+            }
+        },
+        {
+            "name": "dev-fast",
+            "displayName": "Fast Development Build (Ninja)",
+            "description": "Quick build for rapid iteration - core only",
+            "inherits": "x64-core-only",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "vs-dev-debug",
+            "displayName": "Visual Studio Development Debug",
+            "description": "Development build optimized for Visual Studio IDE debugging",
+            "inherits": "vs2022-debug",
+            "cacheVariables": {
+                "BUILD_TESTING": "ON",
+                "CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD": "ON"
+            },
+            "environment": {
+                "VCPKG_ROOT": "$env{VCPKG_ROOT}"
+            }
+        },
+        {
+            "name": "vs-dev-fast",
+            "displayName": "Visual Studio Fast Development",
+            "description": "Quick Visual Studio build for rapid iteration",
+            "inherits": "vs2022-core-only",
+            "cacheVariables": {
+                "CMAKE_VS_INCLUDE_INSTALL_TO_DEFAULT_BUILD": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev-debug",
+            "displayName": "Development Debug Build (Ninja)",
+            "configurePreset": "dev-debug",
+            "configuration": "Debug",
+            "jobs": 0
+        },
+        {
+            "name": "dev-fast",
+            "displayName": "Fast Development Build (Ninja)",
+            "configurePreset": "dev-fast",
+            "configuration": "Release",
+            "jobs": 0
+        },
+        {
+            "name": "vs-dev-debug",
+            "displayName": "Visual Studio Development Debug",
+            "configurePreset": "vs-dev-debug",
+            "configuration": "Debug",
+            "jobs": 0
+        },
+        {
+            "name": "vs-dev-fast",
+            "displayName": "Visual Studio Fast Development",
+            "configurePreset": "vs-dev-fast",
+            "configuration": "Release",
+            "jobs": 0
+        }
+    ]
+}
