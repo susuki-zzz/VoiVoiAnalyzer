@@ -105,7 +105,7 @@ VoiVoiAnalyzer consists of three main components:
 3. **yvc_offline**: Offline Analysis Tool
    - Process audio files up to 3 hours
    - 30-second chunks with 1-second overlap
-   - Outputs: metrics.parquet/csv + summary.json
+   - Outputs: metrics CSV, summary JSON, anomalies JSON, heatmap CSV
    - Same analysis code path as real-time (reproducibility)
    - Heatmap generation and anomaly highlighting
 
@@ -242,7 +242,7 @@ Contributions are welcome! Please ensure:
 ## Roadmap
 
 - [ ] Complete JUCE GUI implementation
-- [ ] Audio file import/export
+- [x] Audio file import/export (offline tooling)
 - [ ] Advanced visualization options
 - [ ] Preset sharing (metrics only)
 - [ ] Multi-language support
