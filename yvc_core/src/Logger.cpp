@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <cstring>
 
 #ifdef _WIN32
 #ifndef NOMINMAX

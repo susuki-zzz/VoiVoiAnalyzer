@@ -83,7 +83,18 @@ if(BUILD_TESTING)
     )
 
     add_test(NAME yvc_core_tests COMMAND yvc_core_tests)
-    
+
+    add_executable(yvc_core_cpp_tests
+        tests/CPPAnalyzerTests.cpp
+    )
+
+    target_link_libraries(yvc_core_cpp_tests
+        PRIVATE
+            yvc_core
+    )
+
+    add_test(NAME yvc_core_cpp_tests COMMAND yvc_core_cpp_tests)
+
     # Logger examples/tests
     add_executable(yvc_logger_examples
         tests/LoggerExamples.cpp
