@@ -39,3 +39,30 @@
 
 # debug information files
 *.dwo
+
+# CMake
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+*.cmake
+
+# IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Third-party (if added as subdirectories)
+third_party/JUCE/
+third_party/eigen/
