@@ -2,6 +2,7 @@
 // License: MIT
 
 #include "yvc_core/CPPAnalyzer.h"
+#define _USE_MATH_DEFINES
 #include <kiss_fft.h>
 #include <kiss_fftr.h>
 #include <cmath>

@@ -109,6 +109,10 @@ private:
 
     // Write heatmap representation to disk
     bool writeHeatmap(const std::string& output_path, const std::vector<HeatmapPoint>& heatmap) const;
+    SummaryStats computeSummary(SampleRate sample_rate, size_t processed_samples) const;
+
+    // Write summary statistics to disk
+    bool writeSummary(const std::string& output_path, const SummaryStats& summary) const;
 };
 
 } // namespace yvc
