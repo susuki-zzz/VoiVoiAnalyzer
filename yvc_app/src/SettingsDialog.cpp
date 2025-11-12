@@ -2,127 +2,251 @@
 // License: GPLv3
 
 #include "SettingsDialog.h"
-
-#include <utility>
+#include "LocalizationManager.h"
+#include <juce_gui_extra/juce_gui_extra.h>
 
 namespace yvc::app {
 
 namespace {
-constexpr int kDialogWidth = 380;
-constexpr int kDialogHeight = 300;
-} // namespace
+constexpr int kDialogWidth = 500;
+constexpr int kDialogHeight = 400;
+constexpr int kButtonHeight = 32;
+constexpr int kRowHeight = 30;
+constexpr int kMargin = 12;
+}
 
 void SettingsDialog::showDialog(const AppSettings& currentSettings, juce::Component* parent, OnClose onClose) {
     auto* dialog = new SettingsDialog(currentSettings, std::move(onClose));
-
+    
     juce::DialogWindow::LaunchOptions options;
-    options.content.set(dialog, true);
-    options.dialogTitle = "Settings";
-    options.dialogBackgroundColour = juce::Colours::black.withAlpha(0.85f);
+    options.dialogTitle = TRANS("settings_title");
+    options.content.setOwned(dialog);
+    options.componentToCentreAround = parent;
     options.escapeKeyTriggersCloseButton = true;
     options.useNativeTitleBar = true;
     options.resizable = false;
-    options.componentToCentreAround = parent;
-    options.launchAsync();
+    options.dialogBackgroundColour = juce::Colours::darkgrey;
+    
+    options.runModal();
 }
 
 SettingsDialog::SettingsDialog(const AppSettings& currentSettings, OnClose onClose)
-    : workingCopy_(currentSettings), onClose_(std::move(onClose)) {
+    : workingCopy_(currentSettings)
+    , onClose_(std::move(onClose))
+    , titleLabel_("", TRANS("settings_title"))
+    , okButton_(TRANS("settings_apply"))
+    , cancelButton_(TRANS("settings_cancel"))
+    , sampleRateLabel_("", TRANS("settings_sample_rate") + ":")
+    , bufferSizeLabel_("", TRANS("settings_buffer_size") + ":")
+    , performanceModeLabel_("", TRANS("settings_performance_mode") + ":")
+    , maxRecordingLabel_("", TRANS("settings_max_duration") + ":")
+    , languageLabel_("", TRANS("settings_language") + ":")
+    , heatmapResolutionLabel_("", TRANS("heatmap_resolution") + ":")
+    , privacyInfoLabel_("", TRANS("privacy_local_processing")) {
+    
     setSize(kDialogWidth, kDialogHeight);
-
-    titleLabel_.setText("Audio & Recording", juce::dontSendNotification);
-    titleLabel_.setFont(juce::Font(18.0f, juce::Font::bold));
-    addAndMakeVisible(titleLabel_);
-
-    sampleRateLabel_.setText("Sample Rate", juce::dontSendNotification);
-    sampleRateLabel_.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(sampleRateLabel_);
-
-    sampleRateBox_.addItem("44.1 kHz", 1);
-    sampleRateBox_.addItem("48 kHz", 2);
-    sampleRateBox_.addItem("96 kHz", 3);
-    sampleRateBox_.setSelectedId(workingCopy_.sampleRate == 44100 ? 1 : workingCopy_.sampleRate == 96000 ? 3 : 2);
+    
+    createTabbedInterface();
+    updateUILanguage();
+    
+    // Configure sample rate options
+    sampleRateBox_.addItem("44.1 kHz", 44100);
+    sampleRateBox_.addItem("48 kHz", 48000);
+    sampleRateBox_.addItem("88.2 kHz", 88200);
+    sampleRateBox_.addItem("96 kHz", 96000);
+    sampleRateBox_.setSelectedId(workingCopy_.sampleRate, juce::dontSendNotification);
     sampleRateBox_.addListener(this);
-    addAndMakeVisible(sampleRateBox_);
-
-    bufferSizeLabel_.setText("Buffer Size", juce::dontSendNotification);
-    bufferSizeLabel_.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(bufferSizeLabel_);
-
-    bufferSizeBox_.addItem("128", 1);
-    bufferSizeBox_.addItem("256", 2);
-    bufferSizeBox_.addItem("512", 3);
-    bufferSizeBox_.addItem("1024", 4);
-    if (workingCopy_.bufferSize == 128)
-        bufferSizeBox_.setSelectedId(1);
-    else if (workingCopy_.bufferSize == 256)
-        bufferSizeBox_.setSelectedId(2);
-    else if (workingCopy_.bufferSize == 1024)
-        bufferSizeBox_.setSelectedId(4);
-    else
-        bufferSizeBox_.setSelectedId(3);
+    
+    // Configure buffer size options
+    bufferSizeBox_.addItem("128", 128);
+    bufferSizeBox_.addItem("256", 256);
+    bufferSizeBox_.addItem("512", 512);
+    bufferSizeBox_.addItem("1024", 1024);
+    bufferSizeBox_.setSelectedId(workingCopy_.bufferSize, juce::dontSendNotification);
     bufferSizeBox_.addListener(this);
-    addAndMakeVisible(bufferSizeBox_);
-
-    maxRecordingLabel_.setText("Max Recording", juce::dontSendNotification);
-    maxRecordingLabel_.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(maxRecordingLabel_);
-
-    maxRecordingSlider_.setRange(60.0, 3600.0, 30.0);
-    maxRecordingSlider_.setValue(workingCopy_.maxRecordingTimeSeconds);
+    
+    // Configure performance mode options
+    performanceModeBox_.addItem(TRANS("mode_light"), 1);
+    performanceModeBox_.addItem(TRANS("mode_standard"), 2);
+    performanceModeBox_.addItem(TRANS("mode_diagnostic"), 3);
+    performanceModeBox_.setSelectedId(2, juce::dontSendNotification); // Default to Standard
+    performanceModeBox_.addListener(this);
+    
+    // Configure max recording duration
+    maxRecordingSlider_.setRange(60.0, 3600.0, 60.0);
+    maxRecordingSlider_.setValue(workingCopy_.maxRecordingTimeSeconds, juce::dontSendNotification);
     maxRecordingSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
-    maxRecordingSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    addAndMakeVisible(maxRecordingSlider_);
-    maxRecordingSlider_.setTextValueSuffix(" s");
-
-    autoSaveToggle_.setButtonText("Auto save sessions");
+    maxRecordingSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60);
+    maxRecordingSlider_.setNumDecimalPlacesToDisplay(0);
+    
+    // Configure language selection
+    auto& locManager = LocalizationManager::getInstance();
+    auto languages = locManager.getAvailableLanguages();
+    for (size_t i = 0; i < languages.size(); ++i) {
+        languageBox_.addItem(locManager.getLanguageName(languages[i]), static_cast<int>(languages[i]) + 1);
+    }
+    languageBox_.setSelectedId(static_cast<int>(workingCopy_.language) + 1, juce::dontSendNotification);
+    languageBox_.addListener(this);
+    
+    // Configure heatmap resolution
+    heatmapResolutionBox_.addItem(TRANS("resolution_high"), 1);
+    heatmapResolutionBox_.addItem(TRANS("resolution_medium"), 2);
+    heatmapResolutionBox_.addItem(TRANS("resolution_low"), 3);
+    heatmapResolutionBox_.setSelectedId(workingCopy_.heatmapResolution, juce::dontSendNotification);
+    heatmapResolutionBox_.addListener(this);
+    
+    // Configure toggles
+    autoSaveToggle_.setButtonText(TRANS("settings_auto_save"));
     autoSaveToggle_.setToggleState(workingCopy_.autoSave, juce::dontSendNotification);
-    addAndMakeVisible(autoSaveToggle_);
-
-    preprocToggle_.setButtonText("Enable preprocessor");
+    
+    preprocToggle_.setButtonText(TRANS("enable_preprocessing"));
     preprocToggle_.setToggleState(workingCopy_.enablePreprocessing, juce::dontSendNotification);
-    addAndMakeVisible(preprocToggle_);
-
+    
+    advancedVisualizationToggle_.setButtonText(TRANS("advanced_visualization"));
+    advancedVisualizationToggle_.setToggleState(workingCopy_.enableAdvancedVisualization, juce::dontSendNotification);
+    
+    spectralAnalysisToggle_.setButtonText(TRANS("spectral_analysis"));
+    spectralAnalysisToggle_.setToggleState(workingCopy_.showSpectralAnalysis, juce::dontSendNotification);
+    
+    ramOnlyToggle_.setButtonText(TRANS("privacy_ram_only"));
+    ramOnlyToggle_.setToggleState(true, juce::dontSendNotification);
+    ramOnlyToggle_.setEnabled(false); // Always enabled for privacy
+    
+    networkingDisabledToggle_.setButtonText(TRANS("privacy_no_network"));
+    networkingDisabledToggle_.setToggleState(true, juce::dontSendNotification);
+    networkingDisabledToggle_.setEnabled(false); // Always enabled for privacy
+    
+    // Buttons
     okButton_.addListener(this);
     cancelButton_.addListener(this);
+    
+    addAndMakeVisible(titleLabel_);
+    addAndMakeVisible(tabbedComponent_.get());
     addAndMakeVisible(okButton_);
     addAndMakeVisible(cancelButton_);
 }
 
 SettingsDialog::~SettingsDialog() {
-    if (!hasClosed_ && onClose_)
-        onClose_(false, workingCopy_);
+    okButton_.removeListener(this);
+    cancelButton_.removeListener(this);
+    sampleRateBox_.removeListener(this);
+    bufferSizeBox_.removeListener(this);
+    performanceModeBox_.removeListener(this);
+    languageBox_.removeListener(this);
+    heatmapResolutionBox_.removeListener(this);
+}
+
+void SettingsDialog::createTabbedInterface() {
+    tabbedComponent_ = std::make_unique<juce::TabbedComponent>(juce::TabbedButtonBar::TabsAtTop);
+    
+    // Audio Settings Tab
+    auto* audioTab = new juce::Component();
+    audioTab->addAndMakeVisible(sampleRateLabel_);
+    audioTab->addAndMakeVisible(sampleRateBox_);
+    audioTab->addAndMakeVisible(bufferSizeLabel_);
+    audioTab->addAndMakeVisible(bufferSizeBox_);
+    audioTab->addAndMakeVisible(performanceModeLabel_);
+    audioTab->addAndMakeVisible(performanceModeBox_);
+    
+    tabbedComponent_->addTab(TRANS("settings_audio"), juce::Colours::darkgrey, audioTab, true);
+    
+    // Recording Settings Tab
+    auto* recordingTab = new juce::Component();
+    recordingTab->addAndMakeVisible(maxRecordingLabel_);
+    recordingTab->addAndMakeVisible(maxRecordingSlider_);
+    recordingTab->addAndMakeVisible(autoSaveToggle_);
+    recordingTab->addAndMakeVisible(preprocToggle_);
+    
+    tabbedComponent_->addTab(TRANS("settings_recording"), juce::Colours::darkgrey, recordingTab, true);
+    
+    // Display Settings Tab
+    auto* displayTab = new juce::Component();
+    displayTab->addAndMakeVisible(languageLabel_);
+    displayTab->addAndMakeVisible(languageBox_);
+    displayTab->addAndMakeVisible(advancedVisualizationToggle_);
+    displayTab->addAndMakeVisible(spectralAnalysisToggle_);
+    displayTab->addAndMakeVisible(heatmapResolutionLabel_);
+    displayTab->addAndMakeVisible(heatmapResolutionBox_);
+    
+    tabbedComponent_->addTab(TRANS("display_settings"), juce::Colours::darkgrey, displayTab, true);
+    
+    // Privacy Settings Tab
+    auto* privacyTab = new juce::Component();
+    privacyTab->addAndMakeVisible(privacyInfoLabel_);
+    privacyTab->addAndMakeVisible(ramOnlyToggle_);
+    privacyTab->addAndMakeVisible(networkingDisabledToggle_);
+    
+    tabbedComponent_->addTab(TRANS("privacy_settings"), juce::Colours::darkgrey, privacyTab, true);
+    
+    // Layout components in tabs
+    auto layoutTab = [](juce::Component* tab, std::vector<std::pair<juce::Component*, juce::Component*>> items) {
+        tab->resized = [tab, items]() {
+            auto bounds = tab->getLocalBounds().reduced(kMargin);
+            for (auto& item : items) {
+                auto row = bounds.removeFromTop(kRowHeight);
+                if (item.first) {
+                    item.first->setBounds(row.removeFromLeft(150));
+                    row.removeFromLeft(10);
+                }
+                if (item.second) {
+                    item.second->setBounds(row);
+                }
+                bounds.removeFromTop(5); // spacing
+            }
+        };
+    };
+    
+    layoutTab(audioTab, {
+        {&sampleRateLabel_, &sampleRateBox_},
+        {&bufferSizeLabel_, &bufferSizeBox_},
+        {&performanceModeLabel_, &performanceModeBox_}
+    });
+    
+    layoutTab(recordingTab, {
+        {&maxRecordingLabel_, &maxRecordingSlider_},
+        {nullptr, &autoSaveToggle_},
+        {nullptr, &preprocToggle_}
+    });
+    
+    layoutTab(displayTab, {
+        {&languageLabel_, &languageBox_},
+        {nullptr, &advancedVisualizationToggle_},
+        {nullptr, &spectralAnalysisToggle_},
+        {&heatmapResolutionLabel_, &heatmapResolutionBox_}
+    });
+    
+    layoutTab(privacyTab, {
+        {nullptr, &privacyInfoLabel_},
+        {nullptr, &ramOnlyToggle_},
+        {nullptr, &networkingDisabledToggle_}
+    });
+}
+
+void SettingsDialog::paint(juce::Graphics& g) {
+    g.fillAll(juce::Colours::darkgrey);
 }
 
 void SettingsDialog::resized() {
-    auto bounds = getLocalBounds().reduced(20);
-    titleLabel_.setBounds(bounds.removeFromTop(28));
-
-    auto sampleRow = bounds.removeFromTop(40);
-    sampleRateLabel_.setBounds(sampleRow.removeFromLeft(150));
-    sampleRateBox_.setBounds(sampleRow.removeFromLeft(160));
-
-    auto bufferRow = bounds.removeFromTop(40);
-    bufferSizeLabel_.setBounds(bufferRow.removeFromLeft(150));
-    bufferSizeBox_.setBounds(bufferRow.removeFromLeft(160));
-
-    auto sliderRow = bounds.removeFromTop(60);
-    maxRecordingLabel_.setBounds(sliderRow.removeFromTop(24));
-    maxRecordingSlider_.setBounds(sliderRow);
-
-    auto toggles = bounds.removeFromTop(60);
-    autoSaveToggle_.setBounds(toggles.removeFromTop(28));
-    preprocToggle_.setBounds(toggles.removeFromTop(28));
-
-    auto buttonRow = bounds.removeFromBottom(36);
-    okButton_.setBounds(buttonRow.removeFromRight(100));
-    buttonRow.removeFromRight(12);
-    cancelButton_.setBounds(buttonRow.removeFromRight(100));
+    auto bounds = getLocalBounds().reduced(kMargin);
+    
+    // Title
+    titleLabel_.setBounds(bounds.removeFromTop(30));
+    bounds.removeFromTop(10);
+    
+    // Buttons
+    auto buttonArea = bounds.removeFromBottom(kButtonHeight);
+    buttonArea.removeFromTop(10);
+    cancelButton_.setBounds(buttonArea.removeFromRight(80));
+    buttonArea.removeFromRight(10);
+    okButton_.setBounds(buttonArea.removeFromRight(80));
+    bounds.removeFromBottom(10);
+    
+    // Tabbed component takes remaining space
+    tabbedComponent_->setBounds(bounds);
 }
 
 void SettingsDialog::buttonClicked(juce::Button* button) {
     if (button == &okButton_) {
-        applyTo(workingCopy_);
         close(true);
     } else if (button == &cancelButton_) {
         close(false);
@@ -130,44 +254,76 @@ void SettingsDialog::buttonClicked(juce::Button* button) {
 }
 
 void SettingsDialog::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
-    if (comboBoxThatHasChanged == &sampleRateBox_) {
-        if (sampleRateBox_.getSelectedId() == 1)
-            workingCopy_.sampleRate = 44100;
-        else if (sampleRateBox_.getSelectedId() == 3)
-            workingCopy_.sampleRate = 96000;
-        else
-            workingCopy_.sampleRate = 48000;
-    } else if (comboBoxThatHasChanged == &bufferSizeBox_) {
-        switch (bufferSizeBox_.getSelectedId()) {
-        case 1: workingCopy_.bufferSize = 128; break;
-        case 2: workingCopy_.bufferSize = 256; break;
-        case 4: workingCopy_.bufferSize = 1024; break;
-        default: workingCopy_.bufferSize = 512; break;
-        }
+    if (comboBoxThatHasChanged == &languageBox_) {
+        auto selectedLanguage = static_cast<LocalizationManager::Language>(languageBox_.getSelectedId() - 1);
+        workingCopy_.language = selectedLanguage;
+        
+        // Apply language change immediately for preview
+        LocalizationManager::getInstance().setLanguage(selectedLanguage);
+        updateUILanguage();
+    }
+    // Other combo box changes are handled when dialog is accepted
+}
+
+void SettingsDialog::updateUILanguage() {
+    titleLabel_.setText(TRANS("settings_title"), juce::dontSendNotification);
+    okButton_.setButtonText(TRANS("settings_apply"));
+    cancelButton_.setButtonText(TRANS("settings_cancel"));
+    
+    // Update labels
+    sampleRateLabel_.setText(TRANS("settings_sample_rate") + ":", juce::dontSendNotification);
+    bufferSizeLabel_.setText(TRANS("settings_buffer_size") + ":", juce::dontSendNotification);
+    performanceModeLabel_.setText(TRANS("settings_performance_mode") + ":", juce::dontSendNotification);
+    maxRecordingLabel_.setText(TRANS("settings_max_duration") + ":", juce::dontSendNotification);
+    languageLabel_.setText(TRANS("settings_language") + ":", juce::dontSendNotification);
+    
+    // Update toggle buttons
+    autoSaveToggle_.setButtonText(TRANS("settings_auto_save"));
+    preprocToggle_.setButtonText(TRANS("enable_preprocessing"));
+    advancedVisualizationToggle_.setButtonText(TRANS("advanced_visualization"));
+    spectralAnalysisToggle_.setButtonText(TRANS("spectral_analysis"));
+    ramOnlyToggle_.setButtonText(TRANS("privacy_ram_only"));
+    networkingDisabledToggle_.setButtonText(TRANS("privacy_no_network"));
+    
+    // Update tab titles
+    if (tabbedComponent_) {
+        tabbedComponent_->setTabName(0, TRANS("settings_audio"));
+        tabbedComponent_->setTabName(1, TRANS("settings_recording"));
+        tabbedComponent_->setTabName(2, TRANS("display_settings"));
+        tabbedComponent_->setTabName(3, TRANS("privacy_settings"));
     }
 }
 
 void SettingsDialog::applyTo(AppSettings& settings) const {
-    settings = workingCopy_;
+    settings.sampleRate = sampleRateBox_.getSelectedId();
+    settings.bufferSize = bufferSizeBox_.getSelectedId();
     settings.maxRecordingTimeSeconds = maxRecordingSlider_.getValue();
     settings.autoSave = autoSaveToggle_.getToggleState();
     settings.enablePreprocessing = preprocToggle_.getToggleState();
+    settings.language = static_cast<LocalizationManager::Language>(languageBox_.getSelectedId() - 1);
+    settings.enableAdvancedVisualization = advancedVisualizationToggle_.getToggleState();
+    settings.showSpectralAnalysis = spectralAnalysisToggle_.getToggleState();
+    settings.heatmapResolution = heatmapResolutionBox_.getSelectedId();
 }
 
 void SettingsDialog::close(bool accepted) {
-    if (hasClosed_)
+    if (hasClosed_) {
         return;
-
-    if (accepted)
-        applyTo(workingCopy_);
-
+    }
     hasClosed_ = true;
-
-    if (onClose_)
-        onClose_(accepted, workingCopy_);
-
-    if (auto* window = findParentComponentOfClass<juce::DialogWindow>())
-        window->closeButtonPressed();
+    
+    AppSettings resultSettings = workingCopy_;
+    if (accepted) {
+        applyTo(resultSettings);
+    }
+    
+    if (onClose_) {
+        onClose_(accepted, resultSettings);
+    }
+    
+    if (auto* window = findParentComponentOfClass<juce::DialogWindow>()) {
+        window->exitModalState(accepted ? 1 : 0);
+    }
 }
 
 } // namespace yvc::app

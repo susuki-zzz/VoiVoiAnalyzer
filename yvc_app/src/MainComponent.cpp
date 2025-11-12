@@ -2,6 +2,7 @@
 // License: GPLv3
 
 #include "MainComponent.h"
+#include "LocalizationManager.h"
 
 #include <juce_core/juce_core.h>
 
@@ -18,16 +19,21 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus)
     : metricsBus_(metricsBus) {
     setSize(kDefaultWidth, kDefaultHeight);
     setOpaque(true);
+    
+    // Initialize localization
+    auto& locManager = LocalizationManager::getInstance();
+    locManager.loadLanguagePreference();
 
     auto& presets = presetManager_.getPresets();
     int presetId = 1;
     for (const auto& preset : presets) {
-        presetSelector_.addItem(preset.name, presetId++);
+        presetSelector_.addItem(TRANS(preset.nameKey), presetId++);
     }
     presetSelector_.setSelectedId(1);
     presetSelector_.addListener(this);
     addAndMakeVisible(presetSelector_);
 
+    settingsButton_.setButtonText(TRANS("settings"));
     settingsButton_.addListener(this);
     addAndMakeVisible(settingsButton_);
 
@@ -57,6 +63,38 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus)
 
     addAndMakeVisible(metricsDisplay_);
     addAndMakeVisible(heatmapDisplay_);
+
+    // Add advanced visualization components if enabled
+    if (settings_.enableAdvancedVisualization) {
+        advancedF0Heatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_f0"));
+        advancedLevelHeatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_level"));
+        
+        addAndMakeVisible(advancedF0Heatmap_.get());
+        addAndMakeVisible(advancedLevelHeatmap_.get());
+        
+        // Configure heatmaps
+        AdvancedHeatmapComponent::HeatmapConfig f0Config;
+        f0Config.minValue = 60.0f;
+        f0Config.maxValue = 400.0f;
+        f0Config.unit = "Hz";
+        f0Config.lowColour = juce::Colours::blue;
+        f0Config.highColour = juce::Colours::red;
+        advancedF0Heatmap_->setConfig(f0Config);
+        
+        AdvancedHeatmapComponent::HeatmapConfig levelConfig;
+        levelConfig.minValue = -60.0f;
+        levelConfig.maxValue = 6.0f;
+        levelConfig.unit = "dBFS";
+        levelConfig.lowColour = juce::Colours::darkblue;
+        levelConfig.highColour = juce::Colours::yellow;
+        advancedLevelHeatmap_->setConfig(levelConfig);
+    }
+    
+    // Add spectral analysis if enabled
+    if (settings_.showSpectralAnalysis) {
+        spectrumAnalyzer_ = std::make_unique<SpectrumAnalyzerComponent>();
+        addAndMakeVisible(spectrumAnalyzer_.get());
+    }
 
     applyPreset(presetManager_.getActivePreset());
     refreshMetrics();
@@ -109,8 +147,22 @@ void MainComponent::resized() {
     degradationNotice_.setBounds(degradationArea.reduced(4, 0));
     statusBar_.setBounds(statusArea);
 
-    auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.35f));
-    heatmapDisplay_.setBounds(heatmapArea);
+    if (settings_.enableAdvancedVisualization && advancedF0Heatmap_ && advancedLevelHeatmap_) {
+        // Advanced layout with enhanced visualization
+        auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.4f));
+        auto topHeatmap = heatmapArea.removeFromTop(heatmapArea.getHeight() / 2);
+        advancedF0Heatmap_->setBounds(topHeatmap);
+        advancedLevelHeatmap_->setBounds(heatmapArea);
+        
+        if (settings_.showSpectralAnalysis && spectrumAnalyzer_) {
+            auto spectrumArea = area.removeFromBottom(static_cast<int>(area.getHeight() * 0.3f));
+            spectrumAnalyzer_->setBounds(spectrumArea);
+        }
+    } else {
+        auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.35f));
+        heatmapDisplay_.setBounds(heatmapArea);
+    }
+    
     metricsDisplay_.setBounds(area);
 }
 
@@ -119,6 +171,17 @@ void MainComponent::timerCallback() {
     updateStatusBar();
     metricsDisplay_.updateMetrics(currentMetrics_);
     heatmapDisplay_.appendSample(currentMetrics_);
+    
+    // Update advanced visualizations if enabled
+    if (settings_.enableAdvancedVisualization) {
+        if (advancedF0Heatmap_) {
+            advancedF0Heatmap_->appendSample(currentMetrics_.f0_valid ? currentMetrics_.f0 : 0.0f, 
+                                           currentMetrics_.timestamp);
+        }
+        if (advancedLevelHeatmap_) {
+            advancedLevelHeatmap_->appendSample(currentMetrics_.rms, currentMetrics_.timestamp);
+        }
+    }
 
     auto now = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
     if (degradationNoticeExpiryMs_ > 0 && now > degradationNoticeExpiryMs_) {
@@ -140,8 +203,19 @@ void MainComponent::buttonClicked(juce::Button* button) {
     if (button == &settingsButton_) {
         SettingsDialog::showDialog(settings_, this, [this](bool accepted, const AppSettings& updated) {
             if (accepted) {
+                auto oldLanguage = settings_.language;
                 settings_ = updated;
+                
+                // Apply language change
+                if (oldLanguage != settings_.language) {
+                    LocalizationManager::getInstance().setLanguage(settings_.language);
+                    updateUILanguage();
+                }
+                
                 recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
+                
+                // Update visualization components based on new settings
+                updateVisualizationLayout();
             }
         });
     }
@@ -158,7 +232,7 @@ void MainComponent::refreshMetrics() {
 
 void MainComponent::applyPreset(const Preset& preset) {
     metricsDisplay_.setDisplayedMetrics(preset.metrics);
-    presetDescription_.setText(preset.description, juce::dontSendNotification);
+    presetDescription_.setText(TRANS(preset.descriptionKey), juce::dontSendNotification);
 }
 
 void MainComponent::updateStatusBar() {
@@ -176,9 +250,77 @@ void MainComponent::updateStatusBar() {
     int minutes = static_cast<int>(remaining) / 60;
     int seconds = static_cast<int>(remaining) % 60;
 
-    juce::String text = juce::String::formatted("FPS %.1f | CPU %.0f%% | RAM %d MB | Time Left %02d:%02d",
-                                                currentFps_, cpuUsage, memoryUsage, minutes, seconds);
+    juce::String text = juce::String::formatted("%s %.1f | %s %.0f%% | %s %d MB | %s %02d:%02d",
+                                                TRANS("status_fps").toRawUTF8(), currentFps_,
+                                                TRANS("status_cpu").toRawUTF8(), cpuUsage, 
+                                                TRANS("status_ram").toRawUTF8(), memoryUsage,
+                                                TRANS("status_time_left").toRawUTF8(), minutes, seconds);
     statusBar_.setText(text, juce::dontSendNotification);
+}
+
+void MainComponent::updateUILanguage() {
+    // Update button text
+    settingsButton_.setButtonText(TRANS("settings"));
+    
+    // Update preset selector items
+    presetSelector_.clear();
+    auto& presets = presetManager_.getPresets();
+    int presetId = 1;
+    for (const auto& preset : presets) {
+        presetSelector_.addItem(TRANS(preset.nameKey), presetId++);
+    }
+    presetSelector_.setSelectedId(1);
+    
+    // Update current preset description
+    const auto& currentPreset = presetManager_.getActivePreset();
+    presetDescription_.setText(TRANS(currentPreset.descriptionKey), juce::dontSendNotification);
+    
+    repaint();
+}
+
+void MainComponent::updateVisualizationLayout() {
+    // Remove old visualization components
+    if (advancedF0Heatmap_) {
+        removeChildComponent(advancedF0Heatmap_.get());
+        advancedF0Heatmap_.reset();
+    }
+    if (advancedLevelHeatmap_) {
+        removeChildComponent(advancedLevelHeatmap_.get());
+        advancedLevelHeatmap_.reset();
+    }
+    if (spectrumAnalyzer_) {
+        removeChildComponent(spectrumAnalyzer_.get());
+        spectrumAnalyzer_.reset();
+    }
+    
+    // Add new components based on settings
+    if (settings_.enableAdvancedVisualization) {
+        advancedF0Heatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_f0"));
+        advancedLevelHeatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_level"));
+        
+        addAndMakeVisible(advancedF0Heatmap_.get());
+        addAndMakeVisible(advancedLevelHeatmap_.get());
+        
+        // Configure heatmaps
+        AdvancedHeatmapComponent::HeatmapConfig f0Config;
+        f0Config.minValue = 60.0f;
+        f0Config.maxValue = 400.0f;
+        f0Config.unit = "Hz";
+        advancedF0Heatmap_->setConfig(f0Config);
+        
+        AdvancedHeatmapComponent::HeatmapConfig levelConfig;
+        levelConfig.minValue = -60.0f;
+        levelConfig.maxValue = 6.0f;
+        levelConfig.unit = "dBFS";
+        advancedLevelHeatmap_->setConfig(levelConfig);
+    }
+    
+    if (settings_.showSpectralAnalysis) {
+        spectrumAnalyzer_ = std::make_unique<SpectrumAnalyzerComponent>();
+        addAndMakeVisible(spectrumAnalyzer_.get());
+    }
+    
+    resized();
 }
 
 void MainComponent::evaluateFrameBudget() {
@@ -193,7 +335,7 @@ void MainComponent::evaluateFrameBudget() {
         if (averageFrameMs > targetFrameMs / kDegradeThreshold && frameBudgetIndex_ + 1 < frameBudgets_.size()) {
             frameBudgetIndex_++;
             configureTimerForCurrentBudget();
-            juce::String notice = "Auto limited to " + juce::String(frameBudgets_[frameBudgetIndex_]) + " FPS";
+            juce::String notice = TRANS("fps_limited").replace("%d", juce::String(frameBudgets_[frameBudgetIndex_]));
             degradationNotice_.setText(notice, juce::dontSendNotification);
             degradationNotice_.setVisible(true);
             degradationNoticeExpiryMs_ = lastPaintTimestampMs_ + 4000;
@@ -208,7 +350,7 @@ void MainComponent::configureTimerForCurrentBudget() {
     stopTimer();
     auto currentBudget = frameBudgets_[frameBudgetIndex_];
     startTimerHz(currentBudget);
-    fpsIndicator_.setText("FPS Target: " + juce::String(currentBudget), juce::dontSendNotification);
+    fpsIndicator_.setText(TRANS("status_fps") + " Target: " + juce::String(currentBudget), juce::dontSendNotification);
     if (frameBudgetIndex_ == 0) {
         degradationNotice_.setVisible(false);
         degradationNoticeExpiryMs_ = 0;

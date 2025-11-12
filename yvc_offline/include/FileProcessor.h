@@ -91,9 +91,7 @@ private:
     bool loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate);
 
     // Compute summary statistics for the processed results
-    SummaryStats computeSummary(SampleRate sample_rate,
-                               size_t processed_samples,
-                               const std::vector<Anomaly>& anomalies) const;
+    SummaryStats computeSummary(SampleRate sample_rate, size_t processed_samples) const;
 
     // Write summary statistics to disk
     bool writeSummary(const std::string& output_path, const SummaryStats& summary) const;
@@ -109,10 +107,6 @@ private:
 
     // Write heatmap representation to disk
     bool writeHeatmap(const std::string& output_path, const std::vector<HeatmapPoint>& heatmap) const;
-    SummaryStats computeSummary(SampleRate sample_rate, size_t processed_samples) const;
-
-    // Write summary statistics to disk
-    bool writeSummary(const std::string& output_path, const SummaryStats& summary) const;
 };
 
 } // namespace yvc

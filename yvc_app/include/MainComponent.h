@@ -11,6 +11,8 @@
 #include "MetricsComponents.h"
 #include "PresetManager.h"
 #include "SettingsDialog.h"
+#include "LocalizationManager.h"
+#include "VisualizationComponents.h"
 #include "yvc_core/MetricsBus.h"
 
 namespace yvc::app {
@@ -34,6 +36,8 @@ private:
     void refreshMetrics();
     void applyPreset(const Preset& preset);
     void updateStatusBar();
+    void updateUILanguage();
+    void updateVisualizationLayout();
     void evaluateFrameBudget();
     void configureTimerForCurrentBudget();
 
@@ -43,6 +47,11 @@ private:
     HeatmapComponent heatmapDisplay_;
     PresetManager presetManager_;
     AppSettings settings_;
+
+    // Enhanced visualization components
+    std::unique_ptr<AdvancedHeatmapComponent> advancedF0Heatmap_;
+    std::unique_ptr<AdvancedHeatmapComponent> advancedLevelHeatmap_;
+    std::unique_ptr<SpectrumAnalyzerComponent> spectrumAnalyzer_;
 
     juce::ComboBox presetSelector_;
     juce::TextButton settingsButton_{ "Settings" };

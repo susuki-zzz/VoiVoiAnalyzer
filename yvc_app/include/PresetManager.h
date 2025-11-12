@@ -10,8 +10,8 @@
 namespace yvc::app {
 
 struct Preset {
-    juce::String name;
-    juce::String description;
+    juce::String nameKey;        // Localization key for preset name
+    juce::String descriptionKey; // Localization key for description
     std::vector<MetricDisplayType> metrics;
 };
 
