@@ -102,6 +102,43 @@ TEST_P(AnalyzerEngineFixture, MaintainsHistoryAcrossMultipleBlocks) {
     EXPECT_TRUE(approximatelyEqual(history.back().timestamp, start_timestamp + hop_duration, 1e-6));
 }
 
+TEST(AnalyzerEnginePerformanceModeTest, SwitchingModesResetsTimestampsAndWindowing) {
+    AudioConfig config;
+    config.sample_rate = SAMPLE_RATE_48K;
+
+    MetricsBus bus;
+    AnalyzerEngine engine(config, bus, PerformanceMode::Standard);
+
+    const auto initial_fft = static_cast<size_t>(engine.getFFTSize());
+    const auto initial_hop = static_cast<size_t>(engine.getHopSize());
+
+    auto standard_block = generateSineWave(220.0f, initial_fft, config.sample_rate);
+    engine.process(standard_block.data(), standard_block.size(), 1.0);
+
+    AnalysisResults first_results{};
+    ASSERT_TRUE(bus.read(first_results));
+    EXPECT_TRUE(approximatelyEqual(first_results.timestamp, 1.0, 1e-6));
+    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Standard);
+
+    engine.setPerformanceMode(PerformanceMode::Diagnostic);
+    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Diagnostic);
+    EXPECT_GT(engine.getFFTSize(), initial_fft);
+    EXPECT_GT(engine.getHopSize(), initial_hop);
+
+    auto diagnostic_block = generateSineWave(220.0f, engine.getFFTSize(), config.sample_rate);
+    engine.process(diagnostic_block.data(), diagnostic_block.size(), 5.0);
+
+    AnalysisResults second_results{};
+    ASSERT_TRUE(bus.read(second_results));
+    EXPECT_TRUE(approximatelyEqual(second_results.timestamp, 5.0, 1e-6));
+    EXPECT_GT(second_results.rms, 0.0f);
+
+    const auto history = bus.getHistory();
+    ASSERT_GE(history.size(), 2u);
+    EXPECT_TRUE(approximatelyEqual(history.front().timestamp, 1.0, 1e-6));
+    EXPECT_TRUE(approximatelyEqual(history.back().timestamp, 5.0, 1e-6));
+}
+
 TEST(AnalyzerEngineVADTest, SustainedSpeechRateRemainsInExpectedRange) {
     AudioConfig config;
     config.sample_rate = SAMPLE_RATE_48K;

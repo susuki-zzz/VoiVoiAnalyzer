@@ -137,6 +137,7 @@ if(BUILD_TESTING)
         tests/HNRAnalyzerTests.cpp
         tests/SpectralAnalyzerTests.cpp
         tests/VADAnalyzerTests.cpp
+        tests/VADAnalyzerWindowTests.cpp
         tests/MetricsBusTests.cpp
         tests/PerformanceModeTests.cpp
         tests/PreprocessChainTests.cpp

@@ -4,6 +4,7 @@
 #include "yvc_core/Types.h"
 
 #include <algorithm>
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -46,6 +47,8 @@ public:
     [[nodiscard]] const juce::String& getCurrentMetric() const { return currentMetric_; }
     [[nodiscard]] double getTimeStart() const { return timeStart_; }
     [[nodiscard]] double getTimeEnd() const { return timeEnd_; }
+    [[nodiscard]] std::pair<float, float> getRangeFor(const juce::String& metric) { return getMetricRange(metric); }
+    [[nodiscard]] juce::String getUnitFor(const juce::String& metric) { return getMetricUnit(metric); }
 };
 
 class SpectrumAnalyzerComponentTestPeer : public SpectrumAnalyzerComponent {
@@ -64,6 +67,9 @@ public:
     [[nodiscard]] bool isF0Valid() const { return f0Valid_; }
     [[nodiscard]] int getFFTSize() const { return fftSize_; }
     [[nodiscard]] bool isHarmonicsOverlayEnabled() const { return harmonicsOverlayEnabled_; }
+    [[nodiscard]] float mapFrequencyToX(float freq, juce::Rectangle<int> area) { return frequencyToX(freq, area); }
+    [[nodiscard]] int mapFrequencyToBin(float freq) { return frequencyToBin(freq); }
+    [[nodiscard]] float mapMagnitudeToY(float magnitude, juce::Rectangle<int> area) { return magnitudeToY(magnitude, area); }
 };
 
 class HeatmapScenarioTest : public juce::UnitTest {
@@ -126,6 +132,23 @@ public:
             auto image = heatmap.createExportImage(width, height, true);
             expectEquals(image.getWidth(), width, "Export width should match request");
             expectEquals(image.getHeight(), height, "Export height should match request");
+        }
+
+        beginTest("PNG export writes to disk when target is writable");
+        {
+            AdvancedHeatmapComponentTestPeer heatmap("DiskExport");
+            heatmap.appendSample(0.25f, 0.0);
+            heatmap.appendSample(0.5f, 0.5);
+
+            juce::TemporaryFile temp;
+            auto targetFile = temp.getFile();
+            targetFile.deleteFile();
+
+            const bool exported = heatmap.exportToPNG(targetFile, 120, 80);
+            expect(exported, "Export should succeed when file is writable");
+            expect(targetFile.existsAsFile(), "PNG file should exist after export");
+
+            targetFile.deleteFile();
         }
     }
 };
@@ -194,6 +217,22 @@ public:
             expectWithinAbsoluteError(component.getTimeEnd(), 25.0, 1e-6,
                                       "Time range end should match request");
         }
+
+        beginTest("Metric metadata helpers expose expected ranges and units");
+        {
+            ComparativeMetricsComponentTestPeer component;
+
+            const auto cppRange = component.getRangeFor("cpp");
+            expectWithinAbsoluteError(cppRange.first, -10.0f, 1e-3f, "CPP lower bound should match design spec");
+            expectWithinAbsoluteError(cppRange.second, 30.0f, 1e-3f, "CPP upper bound should match design spec");
+
+            const auto defaultRange = component.getRangeFor("unknown");
+            expectWithinAbsoluteError(defaultRange.first, 0.0f, 1e-3f, "Unknown metric lower bound should default to 0");
+            expectWithinAbsoluteError(defaultRange.second, 100.0f, 1e-3f, "Unknown metric upper bound should default to 100");
+
+            const auto unit = component.getUnitFor("spectral_tilt");
+            expectEquals(unit, juce::String("dB/oct"), "Spectral tilt unit should be displayed in dB/oct");
+        }
     }
 };
 
@@ -243,6 +282,41 @@ public:
             expect(component.isHarmonicsOverlayEnabled(), "Harmonics overlay should be enabled");
             component.setHarmonicsOverlayEnabled(false);
             expect(!component.isHarmonicsOverlayEnabled(), "Harmonics overlay should be disabled");
+        }
+
+        beginTest("Frequency range adjustments update coordinate mapping");
+        {
+            SpectrumAnalyzerComponentTestPeer component;
+            component.setBounds(0, 0, 800, 400);
+            component.setFrequencyRange(80.0f, 12000.0f);
+
+            juce::Rectangle<int> area(50, 0, 600, 300);
+            const float lowX = component.mapFrequencyToX(80.0f, area);
+            const float highX = component.mapFrequencyToX(12000.0f, area);
+
+            expect(lowX >= area.getX(), "Low frequency should map inside axis bounds");
+            expect(highX <= area.getRight(), "High frequency should map inside axis bounds");
+            expect(lowX < highX, "Frequency mapping should be monotonic");
+
+            const int bin = component.mapFrequencyToBin(1000.0f);
+            expect(bin >= 0, "Frequency bin should be non-negative");
+            expect(bin < component.getFFTSize() / 2 + 1, "Frequency bin should fall within spectrum size");
+        }
+
+        beginTest("Disabling peak hold clears accumulated spectrum");
+        {
+            SpectrumAnalyzerComponentTestPeer component;
+            component.setFFTSize(1024);
+            component.setPeakHoldEnabled(true);
+
+            std::vector<float> spectrum(513, -90.0f);
+            spectrum[32] = -10.0f;
+            component.updateSpectrum(spectrum.data(), static_cast<int>(spectrum.size()));
+
+            component.setPeakHoldEnabled(false);
+            bool allCleared = std::all_of(component.getPeakSpectrum().begin(), component.getPeakSpectrum().end(),
+                                          [](float value) { return std::abs(value) < 1e-5f; });
+            expect(allCleared, "Disabling peak hold should reset stored spectrum");
         }
     }
 };
