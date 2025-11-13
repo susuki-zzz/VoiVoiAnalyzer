@@ -202,6 +202,24 @@ cmake .. -DBUILD_YVC_APP=OFF -DBUILD_YVC_OFFLINE=OFF
 cmake .. -DUSE_EIGEN=ON
 ```
 
+#### Building the GUI (`yvc_app`)
+
+The GUI depends on [JUCE](https://juce.com/) and is enabled when `BUILD_YVC_APP=ON` (default).
+Provide JUCE to CMake using one of the following methods:
+
+1. **Repository checkout** – add JUCE as a submodule at `third_party/JUCE`.
+2. **Custom source tree** – pass the path with `-DYVC_JUCE_PATH="/path/to/JUCE"` or set the `JUCE_DIR` environment variable.
+3. **Automatic fetch** – configure with `-DYVC_FETCH_JUCE=ON` to download JUCE via `FetchContent` during the build.
+
+Example command sequence that fetches JUCE automatically and builds the GUI executable:
+
+```bash
+cmake -S .. -B build/gui -DYVC_FETCH_JUCE=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build/gui --target yvc_app --config Release
+```
+
+On single-config generators (e.g., Ninja/Unix Makefiles) omit `--config Release` in the build command.
+
 ### Build Outputs
 - `yvc_core.lib`: Core analysis library
 - `yvc_app.exe`: GUI application (when JUCE is available)
