@@ -5,25 +5,26 @@
 #pragma once
 
 #include "Types.h"
-#include <kiss_fft.h>
-#include <vector>
+#include <memory>
 
 namespace yvc {
 
 class CPPAnalyzer {
 public:
     explicit CPPAnalyzer(const AudioConfig& config);
+    ~CPPAnalyzer();
+    CPPAnalyzer(CPPAnalyzer&&) noexcept;
+    CPPAnalyzer& operator=(CPPAnalyzer&&) noexcept;
+    CPPAnalyzer(const CPPAnalyzer&) = delete;
+    CPPAnalyzer& operator=(const CPPAnalyzer&) = delete;
     
     // Compute CPP (Cepstral Peak Prominence) in dB
     float analyze(const Sample* samples, size_t num_samples);
     
 private:
+    struct Impl;                  // Pimpl to hide kissfft dependency
     AudioConfig config_;
-    std::vector<float> fft_buffer_;
-    std::vector<float> cepstrum_buffer_;
-    std::vector<kiss_fft_cpx> fft_out_buffer_;
-    std::vector<kiss_fft_cpx> log_spectrum_buffer_;
-    std::vector<kiss_fft_cpx> cepstrum_complex_buffer_;
+    std::unique_ptr<Impl> impl_;  // Implementation storage
     
     // Compute cepstrum and find peak prominence
     float computeCPP(const Sample* samples, size_t num_samples);

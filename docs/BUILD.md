@@ -32,6 +32,44 @@ This document provides detailed build instructions for VoiVoiAnalyzer on Windows
    - Only needed if building with `-DUSE_EIGEN=ON`
    - Can improve performance for certain operations
 
+## Build Options
+
+### CMake Configuration Options
+
+The following CMake options are available:
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `BUILD_TESTING` | `ON` | Build unit tests |
+| `BUILD_YVC_APP` | `ON` | Build GUI application |
+| `BUILD_YVC_OFFLINE` | `ON` | Build offline analysis tool |
+| `USE_EIGEN` | `OFF` | Use Eigen for matrix operations |
+| `YVC_ENABLE_FILE_LOG` | `OFF` | Enable file logging by default |
+| `YVC_ENABLE_COVERAGE` | `OFF` | Enable code coverage reporting (GCC/Clang only) |
+| `YVC_ENABLE_SANITIZERS` | `OFF` | Enable AddressSanitizer and UBSan (Debug only, GCC/Clang) |
+
+### Quick Configuration Examples
+
+```bash
+# Build only core library (no GUI, no offline tool)
+cmake .. -DBUILD_YVC_APP=OFF -DBUILD_YVC_OFFLINE=OFF
+
+# Build with Eigen support
+cmake .. -DUSE_EIGEN=ON
+
+# Specify build type (Debug or Release)
+cmake .. -DCMAKE_BUILD_TYPE=Release
+
+# Specify generator (for example, use Ninja)
+cmake .. -G Ninja
+
+# Enable coverage reporting (Linux/macOS with GCC/Clang)
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DYVC_ENABLE_COVERAGE=ON
+
+# Enable sanitizers for debugging (Linux/macOS)
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DYVC_ENABLE_SANITIZERS=ON
+```
+
 ## Quick Start
 
 ### Using Visual Studio (Windows)
@@ -54,44 +92,82 @@ cmake --build . --config Release
 # Or open VoiVoiAnalyzer.sln in Visual Studio and build from IDE
 ```
 
-### Using Command Line (Windows)
+### Using Command Line (Windows with Ninja)
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/susuki-zzz/VoiVoiAnalyzer.git
 cd VoiVoiAnalyzer
 
-# 2. Create build directory
-mkdir build
-cd build
+# 2. Create build directory and configure
+cmake -S . -B build -GNinja -DCMAKE_BUILD_TYPE=Release
 
-# 3. Configure and build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . --config Release
+# 3. Build
+cmake --build build
+
+# 4. Run tests
+cd build
+ctest --output-on-failure
 ```
 
-## Build Options
-
-### CMake Configuration Options
+### Debug Build with Tests
 
 ```bash
-# Build only core library (no GUI, no offline tool)
-cmake .. -DBUILD_YVC_APP=OFF -DBUILD_YVC_OFFLINE=OFF
-
-# Build with Eigen support
-cmake .. -DUSE_EIGEN=ON
-
-# Specify build type (Debug or Release)
-cmake .. -DCMAKE_BUILD_TYPE=Release
-
-# Specify generator (for example, use Ninja)
-cmake .. -G Ninja
+cmake -S . -B build/debug -GNinja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/debug
+cd build/debug
+ctest --output-on-failure
 ```
 
-### Build Configurations
+## Advanced Builds
+
+### Build with Coverage (Linux/macOS)
+
+```bash
+# Configure with coverage enabled
+cmake -S . -B build/coverage -GNinja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DYVC_ENABLE_COVERAGE=ON
+
+# Build and run tests
+cmake --build build/coverage
+cd build/coverage
+ctest
+
+# Generate coverage report (requires lcov)
+lcov --capture --directory . --output-file coverage.info
+lcov --remove coverage.info '/usr/*' '*/third_party/*' '*/tests/*' --output-file coverage_filtered.info
+genhtml coverage_filtered.info --output-directory coverage_report
+
+# Open coverage_report/index.html in browser
+```
+
+### Build with Sanitizers (Debug, Linux/macOS)
+
+```bash
+cmake -S . -B build/sanitized -GNinja \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DYVC_ENABLE_SANITIZERS=ON
+
+cmake --build build/sanitized
+cd build/sanitized
+ctest  # Will detect memory leaks and undefined behavior
+```
+
+### Build Only Core Library
+
+```bash
+cmake -S . -B build/core -GNinja \
+    -DBUILD_YVC_APP=OFF \
+    -DBUILD_YVC_OFFLINE=OFF
+
+cmake --build build/core
+```
+
+## Build Configurations
 
 - **Debug**: Includes debug symbols, no optimization, useful for development
-- **Release**: Optimized build for production use
+- **Release**: Optimized build for production use (includes LTO)
 - **RelWithDebInfo**: Optimized with debug info
 - **MinSizeRel**: Optimized for minimal size
 
@@ -113,39 +189,75 @@ cmake --build . --config Release --target yvc_offline
 cmake --build . --config Release --target yvc_app
 ```
 
-## Build Outputs
+## Installation and Using in Other Projects
 
-After successful build, you'll find:
+### Installing yvc_core
 
-- `build/yvc_core/Release/yvc_core.lib` - Core analysis library
-- `build/yvc_offline/Release/yvc_offline.exe` - Offline analysis tool
-- `build/yvc_app/Release/yvc_app.exe` - GUI application (when JUCE is available)
+```bash
+# Install to custom prefix
+cmake --install build/release --prefix /path/to/install
+
+# Or use default system prefix (may require admin rights)
+cmake --install build/release
+```
+
+### Using yvc_core in Your CMake Project
+
+After installation, you can use yvc_core in your CMake project:
+
+```cmake
+find_package(yvc_core REQUIRED)
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE yvc::yvc_core)
+```
+
+Example usage:
+
+```cpp
+#include <yvc_core/Types.h>
+#include <yvc_core/F0Detector.h>
+#include <yvc_core/Logger.h>
+
+int main() {
+    // Configure logger
+    yvc::LoggerConfig config;
+    config.minLevel = yvc::LogLevel::DEBUG;
+    yvc::Logger::getInstance().configure(config);
+    
+    LOG_INFO("Starting application");
+    
+    // Use F0 detector, etc.
+    return 0;
+}
+```
 
 ## Testing the Build
+
+### Run All Tests
+
+```bash
+cd build
+ctest --output-on-failure
+```
+
+### Run Specific Test
+
+```bash
+cd build
+./yvc_core/yvc_core_tests
+./yvc_offline/yvc_offline_tests  # if built
+```
 
 ### Test Offline Tool
 
 ```bash
 # Navigate to build output
-cd build/yvc_offline/Release
+cd build/yvc_offline
 
 # Run offline tool
-yvc_offline.exe --help
-
-# Test with sample file (when audio loading is implemented)
-yvc_offline.exe input.wav output.csv
-```
-
-### Test Core Library
-
-The core library can be tested by integrating it into your own C++ project:
-
-```cpp
-#include <yvc_core/Types.h>
-#include <yvc_core/F0Detector.h>
-#include <yvc_core/LevelAnalyzer.h>
-
-// Your code here
+./yvc_offline --help  # Linux/macOS
+yvc_offline.exe --help  # Windows
 ```
 
 ## Troubleshooting
@@ -168,6 +280,25 @@ The core library can be tested by integrating it into your own C++ project:
 - Or use GCC 10+ / Clang 12+
 - Check CMake output to verify C++20 is enabled
 
+### Runtime Library Mismatch (Windows)
+
+**Error**: "LNK2038: mismatch detected for 'RuntimeLibrary'"
+
+**Solution**:
+- All targets use `/MD` (release) or `/MDd` (debug) by default
+- This is configured automatically via `CMAKE_MSVC_RUNTIME_LIBRARY`
+- If integrating with external libraries, ensure they also use dynamic runtime
+
+### Coverage Not Working
+
+**Error**: Coverage reports are empty or not generated
+
+**Solution**:
+- Ensure you're using GCC or Clang compiler
+- Install lcov: `sudo apt-get install lcov` (Ubuntu) or `brew install lcov` (macOS)
+- Make sure tests were run: `ctest` before generating report
+- Check that `YVC_ENABLE_COVERAGE=ON` was set during configuration
+
 ### KissFFT Build Errors
 
 **Error**: Issues building KissFFT
@@ -179,75 +310,62 @@ The core library can be tested by integrating it into your own C++ project:
 
 ### Missing JUCE Framework
 
-**Note**: GUI application build is currently configured as a placeholder
+**Note**: GUI application requires JUCE framework
 
 **Solution**:
-- The GUI app requires JUCE framework
-- For now, build with `-DBUILD_YVC_APP=OFF` to skip GUI
-- JUCE integration will be completed in future updates
+- JUCE will be fetched automatically if internet connection is available
+- Alternatively, manually clone: `git clone --depth 1 --branch 7.0.12 https://github.com/juce-framework/JUCE.git third_party/JUCE`
+- Or build without GUI: `-DBUILD_YVC_APP=OFF`
 
 ## Platform-Specific Notes
 
 ### Windows
 - Primary development platform
-- Best tested with Visual Studio 2019/2022
+- Best tested with Visual Studio 2019/2022 or Ninja
 - MSVC compiler recommended for optimal Windows integration
 
-### Future Platforms
-- Linux support: Planned
-- macOS support: Planned
+### Linux (Planned)
+- GCC 10+ or Clang 12+ required
+- Install dependencies: `sudo apt-get install build-essential cmake ninja-build`
+
+### macOS (Planned)
+- Xcode Command Line Tools required
+- Or use Homebrew: `brew install cmake ninja`
 
 ## Performance Optimization
 
 For optimal performance:
 
 1. Always use Release build configuration
-2. Enable compiler optimizations
+2. Link-Time Optimization (LTO) is enabled automatically for Release builds
 3. Consider using Eigen for matrix operations: `-DUSE_EIGEN=ON`
-4. Use native architecture optimization if available
+4. Profile with sanitizers in Debug: `-DYVC_ENABLE_SANITIZERS=ON`
 
-## Getting Help
+## Continuous Integration
 
-If you encounter build issues:
+### GitHub Actions Example
 
-1. Check this document for common solutions
-2. Verify all prerequisites are installed
-3. Try cleaning build directory: `rm -rf build/`
-4. Check CMake version: `cmake --version`
-5. Open an issue on GitHub with:
-   - CMake version
-   - Compiler version
-   - Full error message
-   - CMake configuration command used
+```yaml
+name: Build and Test
 
-## Advanced Configuration
+on: [push, pull_request]
 
-### Custom Installation Path
-
-```bash
-cmake .. -DCMAKE_INSTALL_PREFIX=/path/to/install
-cmake --build . --config Release --target install
-```
-
-### Cross-Compilation
-
-Cross-compilation setup will be documented when Linux/macOS support is added.
-
-### Using vcpkg
-
-VoiVoiAnalyzer can potentially use vcpkg for dependency management:
-
-```bash
-# If using vcpkg
-cmake .. -DCMAKE_TOOLCHAIN_FILE=/path/to/vcpkg/scripts/buildsystems/vcpkg.cmake
-```
-
-## Contributing to Build System
-
-When contributing changes to the build system:
-
-1. Test on multiple CMake versions (3.20+)
-2. Verify Windows builds work
-3. Ensure both Debug and Release configurations work
-4. Document any new build options
-5. Update this document if adding new requirements
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        build_type: [Debug, Release]
+        
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Configure
+      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -GNinja
+      
+    - name: Build
+      run: cmake --build build
+      
+    - name: Test
+      run: cd build && ctest --output-on-failure

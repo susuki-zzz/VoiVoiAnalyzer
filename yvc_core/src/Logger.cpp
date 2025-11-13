@@ -41,7 +41,7 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
-Logger::Logger() : isShutdown_(false) {
+Logger::Logger() : minLevel_(LogLevel::INFO), isShutdown_(false) {
     // Default configuration
     config_.minLevel = LogLevel::INFO;
     config_.enableConsole = true;
@@ -61,9 +61,10 @@ void Logger::configure(const LoggerConfig& config) {
     }
     
     config_ = config;
+    minLevel_.store(config.minLevel, std::memory_order_release);
     
     // Privacy check: Never allow audio data logging in production
-    #ifdef NDEBUG
+    #if defined(NDEBUG) || defined(YVC_PRODUCTION)
     config_.allowAudioDataLogging = false;
     #endif
     
@@ -86,12 +87,14 @@ void Logger::configure(const LoggerConfig& config) {
 }
 
 void Logger::setMinLevel(LogLevel level) {
+    minLevel_.store(level, std::memory_order_release);
     std::lock_guard<std::mutex> lock(mutex_);
     config_.minLevel = level;
 }
 
 bool Logger::shouldLog(LogLevel level) const {
-    return !isShutdown_.load() && level >= config_.minLevel;
+    return !isShutdown_.load(std::memory_order_acquire) && 
+           level >= minLevel_.load(std::memory_order_acquire);
 }
 
 void Logger::log(LogLevel level, const char* file, int line, const char* function,
@@ -105,7 +108,7 @@ void Logger::log(LogLevel level, const char* file, int line, const char* functio
     std::lock_guard<std::mutex> lock(mutex_);
     
     if (config_.enableConsole) {
-        writeToConsole(formattedMessage);
+        writeToConsole(level, formattedMessage);
     }
     
     if (config_.enableFile && fileStream_.is_open()) {
@@ -125,9 +128,11 @@ void Logger::flush() {
 }
 
 void Logger::shutdown() {
-    if (isShutdown_.exchange(true)) {
+    if (isShutdown_.exchange(true, std::memory_order_acq_rel)) {
         return;  // Already shut down
     }
+    
+    flush();  // Flush before shutdown
     
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -142,9 +147,10 @@ void Logger::shutdown() {
     }
 }
 
-void Logger::writeToConsole(const std::string& message) {
-    // Output to appropriate stream based on log level
-    std::cout << message << std::endl;
+void Logger::writeToConsole(LogLevel level, const std::string& message) {
+    // Use stderr for WARN and above, stdout for INFO and below
+    auto& stream = (level >= LogLevel::WARN) ? std::cerr : std::cout;
+    stream << message << std::endl;
     
     // Also output to debugger on Windows
     #ifdef _WIN32
@@ -176,10 +182,18 @@ void Logger::rotateLogFile() {
     
     fileStream_.close();
     
-    // Rename old log file
+    // Rename old log file with error handling
     std::string oldPath = config_.logFilePath + ".old";
     std::remove(oldPath.c_str());  // Remove previous .old file
-    std::rename(config_.logFilePath.c_str(), oldPath.c_str());
+    
+    if (std::rename(config_.logFilePath.c_str(), oldPath.c_str()) != 0) {
+        // If rename fails, try to use a timestamped backup name
+        auto now = std::chrono::system_clock::now();
+        auto time = std::chrono::system_clock::to_time_t(now);
+        std::ostringstream backupPath;
+        backupPath << config_.logFilePath << ".backup." << time;
+        std::rename(config_.logFilePath.c_str(), backupPath.str().c_str());
+    }
     
     // Open new log file
     fileStream_.open(config_.logFilePath, std::ios::out | std::ios::trunc);
@@ -189,6 +203,9 @@ void Logger::rotateLogFile() {
         fileStream_ << "========================================\n";
         fileStream_ << "VoiVoi Analyzer Log (Rotated) - " << std::ctime(&time);
         fileStream_ << "========================================\n";
+    } else {
+        std::cerr << "Logger: Failed to reopen log file after rotation: " 
+                  << config_.logFilePath << std::endl;
     }
 }
 
@@ -223,8 +240,8 @@ std::string Logger::formatMessage(LogLevel level, const char* file, int line,
     // Log level
     oss << "[" << logLevelToString(level) << "] ";
     
-    // Source location
-    if (config_.includeSourceLocation && file && function) {
+    // Source location (only if file and function are provided)
+    if (config_.includeSourceLocation && file && function && file[0] != '\0') {
         // Extract filename from full path
         const char* filename = file;
         const char* slash = strrchr(file, '/');
@@ -258,7 +275,8 @@ ScopedTimer::~ScopedTimer() {
     std::ostringstream oss;
     oss << "[TIMER] " << name_ << " took " << duration.count() << " µs";
     
-    Logger::getInstance().log(level_, "", 0, "", oss.str());
+    // Use empty file/line for timer messages
+    Logger::getInstance().log(level_, nullptr, 0, nullptr, oss.str());
 }
 
 // LogStream implementation

@@ -119,11 +119,11 @@ TEST(AnalyzerEngineVADTest, SustainedSpeechRateRemainsInExpectedRange) {
     EXPECT_LE(results.speech_rate, 6.0f);
 }
 
+INSTANTIATE_TEST_SUITE_P(AllPerformanceModes,
+                         AnalyzerEngineFixture,
+                         ::testing::Values(PerformanceMode::Light,
+                                           PerformanceMode::Standard,
+                                           PerformanceMode::Diagnostic));
+
 } // namespace
 } // namespace yvc::test
-
-INSTANTIATE_TEST_SUITE_P(AllPerformanceModes,
-                         yvc::test::AnalyzerEngineFixture,
-                         ::testing::Values(yvc::PerformanceMode::Light,
-                                           yvc::PerformanceMode::Standard,
-                                           yvc::PerformanceMode::Diagnostic));

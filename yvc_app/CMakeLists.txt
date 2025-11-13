@@ -3,64 +3,47 @@
 
 project(yvc_app VERSION 0.1.0 LANGUAGES CXX)
 
-# Check if JUCE is available
-find_package(PkgConfig QUIET)
-
-# Try to find JUCE
+# Try to locate JUCE locally first (e.g. as a submodule in third_party/JUCE)
 set(JUCE_FOUND FALSE)
-
-# Method 1: Try to find system-installed JUCE
-find_path(JUCE_INCLUDE_DIR
-    NAMES juce_core/juce_core.h
-    PATHS
-        /usr/include/JUCE
-        /usr/local/include/JUCE
-        C:/JUCE/modules
-        ${CMAKE_SOURCE_DIR}/third_party/JUCE/modules
-        ${CMAKE_SOURCE_DIR}/JUCE/modules
-    DOC "JUCE include directory"
-)
-
-if(JUCE_INCLUDE_DIR)
-    message(STATUS "Found JUCE at: ${JUCE_INCLUDE_DIR}")
+set(_JUCE_LOCAL_PATH "${CMAKE_SOURCE_DIR}/third_party/JUCE")
+if(EXISTS "${_JUCE_LOCAL_PATH}/modules/juce_core/juce_core.h")
+    message(STATUS "Found JUCE submodule at: ${_JUCE_LOCAL_PATH}")
+    add_subdirectory(${_JUCE_LOCAL_PATH} ${_JUCE_LOCAL_PATH}/build)
     set(JUCE_FOUND TRUE)
 endif()
 
-# Method 2: Download JUCE if not found
-if(NOT JUCE_FOUND)
-    message(STATUS "JUCE not found locally, downloading...")
+# If not found locally, fetch it if allowed.
+if(NOT JUCE_FOUND AND YVC_FETCH_JUCE)
+    message(STATUS "JUCE not found locally, fetching via FetchContent...")
     include(FetchContent)
-    
+    # Ensure JUCE options are set BEFORE making available
+    set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Build JUCE examples" FORCE)
+    set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Build JUCE extras" FORCE)
+
     FetchContent_Declare(
-        JUCE
+        juce
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
         GIT_TAG        7.0.12
         GIT_SHALLOW    TRUE
         GIT_PROGRESS   TRUE
     )
-    
-    FetchContent_GetProperties(JUCE)
+    FetchContent_GetProperties(juce)
     if(NOT juce_POPULATED)
-        message(STATUS "Populating JUCE...")
-        FetchContent_Populate(JUCE)
-        
-        # Set JUCE options before adding subdirectory
-        set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "Build JUCE examples")
-        set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "Build JUCE extras")
-        
-        add_subdirectory(${juce_SOURCE_DIR} ${juce_BINARY_DIR})
-        set(JUCE_FOUND TRUE)
-        message(STATUS "JUCE downloaded and configured")
+        FetchContent_MakeAvailable(juce)
     endif()
+    set(JUCE_FOUND TRUE)
+    message(STATUS "JUCE fetched and configured")
+elseif(NOT JUCE_FOUND AND NOT YVC_FETCH_JUCE)
+    message(STATUS "JUCE not found and YVC_FETCH_JUCE=OFF; will build stub app.")
 endif()
 
 if(JUCE_FOUND)
     message(STATUS "Building VoiVoi App with JUCE support")
-    
+
     # Check for icon files
     set(ICON_BIG_PATH "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_512.png")
     set(ICON_SMALL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon_64.png")
-    
+
     set(JUCE_APP_ARGS
         PRODUCT_NAME "VoiVoi Analyzer"
         COMPANY_NAME "VoiVoi Team"
@@ -69,7 +52,7 @@ if(JUCE_FOUND)
         MICROPHONE_PERMISSION_ENABLED TRUE
         MICROPHONE_PERMISSION_TEXT "VoiVoi Analyzer needs microphone access for real-time voice analysis"
     )
-    
+
     # Add icon files only if they exist
     if(EXISTS "${ICON_BIG_PATH}")
         list(APPEND JUCE_APP_ARGS ICON_BIG "${ICON_BIG_PATH}")
@@ -77,17 +60,17 @@ if(JUCE_FOUND)
     else()
         message(STATUS "Large icon not found at ${ICON_BIG_PATH}, using default")
     endif()
-    
+
     if(EXISTS "${ICON_SMALL_PATH}")
         list(APPEND JUCE_APP_ARGS ICON_SMALL "${ICON_SMALL_PATH}")
         message(STATUS "Using small icon: ${ICON_SMALL_PATH}")
     else()
         message(STATUS "Small icon not found at ${ICON_SMALL_PATH}, using default")
     endif()
-    
+
     # Create the JUCE GUI application
     juce_add_gui_app(yvc_app ${JUCE_APP_ARGS})
-    
+
     # Add source files
     target_sources(yvc_app
         PRIVATE
@@ -99,14 +82,14 @@ if(JUCE_FOUND)
             src/LocalizationManager.cpp
             src/VisualizationComponents.cpp
     )
-    
+
     # Add include directories
     target_include_directories(yvc_app
         PRIVATE
             include
             ${CMAKE_SOURCE_DIR}/yvc_core/include
     )
-    
+
     # Link libraries
     target_link_libraries(yvc_app
         PRIVATE
@@ -127,10 +110,10 @@ if(JUCE_FOUND)
             juce::juce_recommended_lto_flags
             juce::juce_recommended_warning_flags
     )
-    
-    # Set C++20 standard
+
+    # Set C++ standard (JUCE handles this but explicit is better)
     target_compile_features(yvc_app PRIVATE cxx_std_20)
-    
+
     # JUCE specific definitions
     target_compile_definitions(yvc_app
         PRIVATE
@@ -145,6 +128,10 @@ if(JUCE_FOUND)
     # Platform-specific settings
     if(WIN32)
         target_compile_definitions(yvc_app PRIVATE JUCE_WIN32=1)
+        # Ensure consistent runtime library
+        set_target_properties(yvc_app PROPERTIES
+            MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+        )
     elseif(APPLE)
         target_compile_definitions(yvc_app PRIVATE JUCE_MAC=1)
     elseif(UNIX)
@@ -152,18 +139,17 @@ if(JUCE_FOUND)
     endif()
 
     if(BUILD_TESTING)
-        if(NOT YVC_GTEST_MAIN_TARGET)
-            message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
-        endif()
-
-        include(GoogleTest)
-        add_executable(yvc_app_tests
+        yvc_add_gtest(yvc_app_tests
             tests/PresetManagerTests.cpp
+        )
+
+        # Compile implementation sources needed by tests
+        target_sources(yvc_app_tests PRIVATE
+            src/PresetManager.cpp
         )
 
         target_link_libraries(yvc_app_tests
             PRIVATE
-                ${YVC_GTEST_MAIN_TARGET}
                 juce::juce_core
                 juce::juce_gui_basics
                 yvc_core
@@ -174,22 +160,16 @@ if(JUCE_FOUND)
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
                 ${CMAKE_SOURCE_DIR}/yvc_core/include
         )
-
-        gtest_discover_tests(yvc_app_tests)
     endif()
 
 else()
     message(WARNING "JUCE not available - creating stub application")
-    message(STATUS "To build with JUCE, install JUCE 7.0+ or ensure internet connection for download")
-    
-    # Create stub executable for testing core integration  
+    message(STATUS "Enable YVC_FETCH_JUCE=ON or add JUCE under third_party/JUCE to build full GUI.")
     add_executable(yvc_app src/MainStub.cpp)
+    target_compile_features(yvc_app PRIVATE cxx_std_20)
     target_link_libraries(yvc_app PRIVATE yvc_core)
     target_include_directories(yvc_app PRIVATE include ${CMAKE_SOURCE_DIR}/yvc_core/include)
-    target_compile_features(yvc_app PRIVATE cxx_std_20)
-    
     message(STATUS "Built stub application: yvc_app")
-    message(STATUS "Run the stub to test core integration without GUI")
 endif()
 
 # Installation targets

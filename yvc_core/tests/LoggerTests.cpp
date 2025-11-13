@@ -4,6 +4,9 @@
 
 #include <filesystem>
 #include <fstream>
+#include <thread>
+#include <vector>
+#include <atomic>
 
 namespace yvc::test {
 namespace {
@@ -46,6 +49,137 @@ TEST(LoggerTests, RotatesWhenFileReachesLimit) {
 
     std::filesystem::remove(log_path);
     std::filesystem::remove(rotated_path);
+}
+
+TEST(LoggerTests, ThreadSafeLogging) {
+    auto& logger = Logger::getInstance();
+    
+    LoggerConfig config;
+    config.minLevel = LogLevel::DEBUG;
+    config.enableConsole = false;
+    config.enableFile = false;
+    logger.configure(config);
+
+    constexpr int kNumThreads = 10;
+    constexpr int kLogsPerThread = 100;
+    std::atomic<int> completedThreads{0};
+    
+    std::vector<std::thread> threads;
+    threads.reserve(kNumThreads);
+    
+    for (int i = 0; i < kNumThreads; ++i) {
+        threads.emplace_back([i, &logger, &completedThreads]() {
+            for (int j = 0; j < kLogsPerThread; ++j) {
+                LOG_DEBUGF("Thread %d message %d", i, j);
+                LOG_INFO(std::string("Thread ") + std::to_string(i) + " info");
+                LOG_WARN("Thread warning");
+            }
+            completedThreads.fetch_add(1, std::memory_order_relaxed);
+        });
+    }
+    
+    for (auto& thread : threads) {
+        thread.join();
+    }
+    
+    EXPECT_EQ(completedThreads.load(), kNumThreads);
+}
+
+TEST(LoggerTests, MinLevelThreadSafe) {
+    auto& logger = Logger::getInstance();
+    
+    LoggerConfig config;
+    config.minLevel = LogLevel::INFO;
+    config.enableConsole = false;
+    config.enableFile = false;
+    logger.configure(config);
+    
+    std::atomic<bool> stopFlag{false};
+    std::atomic<int> logCount{0};
+    
+    // Thread that changes log level
+    std::thread configThread([&]() {
+        for (int i = 0; i < 50; ++i) {
+            logger.setMinLevel(LogLevel::DEBUG);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            logger.setMinLevel(LogLevel::WARN);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        stopFlag.store(true);
+    });
+    
+    // Thread that logs
+    std::thread logThread([&]() {
+        while (!stopFlag.load()) {
+            if (logger.shouldLog(LogLevel::DEBUG)) {
+                LOG_DEBUG("Debug message");
+                logCount.fetch_add(1);
+            }
+            if (logger.shouldLog(LogLevel::WARN)) {
+                LOG_WARN("Warning message");
+                logCount.fetch_add(1);
+            }
+        }
+    });
+    
+    configThread.join();
+    logThread.join();
+    
+    // Just verify we didn't crash
+    EXPECT_GT(logCount.load(), 0);
+}
+
+TEST(LoggerTests, FormattedLoggingNoArgs) {
+    auto& logger = Logger::getInstance();
+    
+    LoggerConfig config;
+    config.minLevel = LogLevel::INFO;
+    config.enableConsole = false;
+    config.enableFile = false;
+    logger.configure(config);
+    
+    // Should not crash with no arguments
+    LOG_INFOF("Simple message with no args");
+    SUCCEED();
+}
+
+TEST(LoggerTests, FormattedLoggingWithArgs) {
+    auto& logger = Logger::getInstance();
+    
+    LoggerConfig config;
+    config.minLevel = LogLevel::INFO;
+    config.enableConsole = false;
+    config.enableFile = false;
+    logger.configure(config);
+    
+    LOG_INFOF("Value: %d, String: %s", 42, "test");
+    LOG_DEBUGF("Float: %.2f", 3.14159);
+    SUCCEED();
+}
+
+TEST(LoggerTests, ScopedTimerBasic) {
+    auto& logger = Logger::getInstance();
+    
+    LoggerConfig config;
+    config.minLevel = LogLevel::DEBUG;
+    config.enableConsole = false;
+    config.enableFile = false;
+    logger.configure(config);
+    
+    {
+        LOG_SCOPE_TIMER("TestOperation");
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    
+    SUCCEED();
+}
+
+TEST(LoggerTests, LogLevelOrdering) {
+    EXPECT_LT(static_cast<int>(LogLevel::TRACE), static_cast<int>(LogLevel::DEBUG));
+    EXPECT_LT(static_cast<int>(LogLevel::DEBUG), static_cast<int>(LogLevel::INFO));
+    EXPECT_LT(static_cast<int>(LogLevel::INFO), static_cast<int>(LogLevel::WARN));
+    EXPECT_LT(static_cast<int>(LogLevel::WARN), static_cast<int>(LogLevel::ERROR));
+    EXPECT_LT(static_cast<int>(LogLevel::ERROR), static_cast<int>(LogLevel::FATAL));
 }
 
 } // namespace

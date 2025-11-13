@@ -66,25 +66,39 @@ public:
     // Get current configuration
     const LoggerConfig& getConfig() const { return config_; }
     
-    // Set minimum log level at runtime
+    // Set minimum log level at runtime (thread-safe)
     void setMinLevel(LogLevel level);
     
-    // Check if a log level would be logged
+    // Check if a log level would be logged (thread-safe)
     bool shouldLog(LogLevel level) const;
     
     // Log a message
     void log(LogLevel level, const char* file, int line, const char* function, 
              const std::string& message);
     
-    // Formatted logging (printf-style)
+    // Formatted logging (variadic template version for C++20)
     template<typename... Args>
     void logf(LogLevel level, const char* file, int line, const char* function,
-              const char* format, Args... args) {
+              const char* format, Args&&... args) {
         if (!shouldLog(level)) return;
         
-        char buffer[1024];
-        std::snprintf(buffer, sizeof(buffer), format, args...);
-        log(level, file, line, function, std::string(buffer));
+        // Calculate required buffer size
+        int size = std::snprintf(nullptr, 0, format, std::forward<Args>(args)...);
+        if (size <= 0) {
+            log(level, file, line, function, "[Format error]");
+            return;
+        }
+        
+        // Allocate and format
+        std::vector<char> buffer(size + 1);
+        std::snprintf(buffer.data(), buffer.size(), format, std::forward<Args>(args)...);
+        log(level, file, line, function, std::string(buffer.data()));
+    }
+    
+    // Overload for no-argument case
+    void logf(LogLevel level, const char* file, int line, const char* function,
+              const char* message) {
+        log(level, file, line, function, std::string(message));
     }
     
     // Flush all pending log messages
@@ -101,55 +115,80 @@ private:
     Logger();
     ~Logger();
     
-    void writeToConsole(const std::string& message);
+    void writeToConsole(LogLevel level, const std::string& message);
     void writeToFile(const std::string& message);
     void rotateLogFile();
     std::string formatMessage(LogLevel level, const char* file, int line, 
                              const char* function, const std::string& message);
     
     LoggerConfig config_;
+    std::atomic<LogLevel> minLevel_;  // Thread-safe access
     std::mutex mutex_;
     std::ofstream fileStream_;
     std::atomic<bool> isShutdown_;
 };
 
-// Convenience macros for logging
+// Convenience macros for logging (wrapped in do-while for safety)
 #define LOG_TRACE(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
 #define LOG_DEBUG(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
 #define LOG_INFO(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
 #define LOG_WARN(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
 #define LOG_ERROR(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
 #define LOG_FATAL(msg) \
-    yvc::Logger::getInstance().log(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, msg)
+    do { \
+        yvc::Logger::getInstance().log(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, msg); \
+    } while(0)
 
-// Formatted logging macros
-#define LOG_TRACEF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+// Formatted logging macros without __VA_OPT__ (works for both with/without args)
+#define LOG_TRACEF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
-#define LOG_DEBUGF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define LOG_DEBUGF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
-#define LOG_INFOF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define LOG_INFOF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
-#define LOG_WARNF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define LOG_WARNF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
-#define LOG_ERRORF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define LOG_ERRORF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
-#define LOG_FATALF(fmt, ...) \
-    yvc::Logger::getInstance().logf(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, fmt, __VA_ARGS__)
+#define LOG_FATALF(...) \
+    do { \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+    } while(0)
 
 // Scoped timer for performance profiling
 class ScopedTimer {

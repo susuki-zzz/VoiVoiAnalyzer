@@ -1,18 +1,19 @@
 #include <gtest/gtest.h>
 
 #include <yvc_core/MetricsOnlyCoachProvider.h>
+#include <yvc_core/ICoachProvider.h>
 
 namespace yvc::test {
 namespace {
 
-MetricsSummary createSummary(float f0_mean) {
-    MetricsSummary summary{};
-    summary.f0.mean = f0_mean;
-    summary.rms.mean = -12.0f;
-    summary.cpp.mean = 20.0f;
-    summary.speech_rate = 4.0f;
-    summary.voice_active_ratio = 0.75f;
-    return summary;
+SummarySnapshot createSummary(float f0_mean) {
+    SummarySnapshot s{};
+    s.f0.mean = f0_mean;
+    s.rms.mean = -12.0f;
+    s.cpp.mean = 20.0f;
+    s.speech_rate = 4.0f;
+    s.voice_active_ratio = 0.75f;
+    return s;
 }
 
 TEST(MetricsOnlyCoachProviderTests, RequiresApiKeyBeforeResponding) {

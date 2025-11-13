@@ -2,23 +2,20 @@
     "version": 3,
     "configurePresets": [
         {
-            "name": "dev-debug",
-            "displayName": "Development Debug",
-            "description": "Personal development build with extra debugging features",
-            "inherits": "x64-debug",
+            "name": "dev-debug-user",
+            "displayName": "User Dev Debug (inherits project dev-debug)",
+            "inherits": "dev-debug",
             "cacheVariables": {
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "BUILD_TESTING": "ON"
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
             }
         }
     ],
     "buildPresets": [
         {
-            "name": "dev-debug",
-            "displayName": "Development Debug Build",
-            "configurePreset": "dev-debug",
-            "configuration": "Debug",
-            "jobs": 0
+            "name": "build-dev-debug-user",
+            "displayName": "User Dev Debug Build",
+            "configurePreset": "dev-debug-user",
+            "configuration": "Debug"
         }
     ]
 }

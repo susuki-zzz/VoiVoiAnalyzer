@@ -17,6 +17,9 @@ set(YVC_OFFLINE_HEADERS
 # Create executable
 add_executable(yvc_offline ${YVC_OFFLINE_SOURCES} ${YVC_OFFLINE_HEADERS})
 
+# Set C++ standard per target
+target_compile_features(yvc_offline PRIVATE cxx_std_20)
+
 # Include directories
 target_include_directories(yvc_offline
     PRIVATE
@@ -29,13 +32,30 @@ target_link_libraries(yvc_offline
         yvc_core
 )
 
+# Windows-specific settings
+if(WIN32)
+    target_compile_definitions(yvc_offline PRIVATE _CRT_SECURE_NO_WARNINGS)
+    # Ensure consistent runtime library
+    set_target_properties(yvc_offline PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
+endif()
+
+# Compiler warnings
+if(MSVC)
+    target_compile_options(yvc_offline PRIVATE /W4)
+else()
+    target_compile_options(yvc_offline PRIVATE 
+        -Wall -Wextra -Wpedantic
+        -Wconversion -Wshadow
+    )
+endif()
+
 include(CTest)
 
 # Unit tests
 if(BUILD_TESTING)
-    include(GoogleTest)
-
-    add_executable(yvc_offline_tests
+    yvc_add_gtest(yvc_offline_tests
         tests/FileProcessorTests.cpp
         src/FileProcessor.cpp
     )
@@ -45,24 +65,5 @@ if(BUILD_TESTING)
             ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
 
-    if(NOT YVC_GTEST_MAIN_TARGET)
-        message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
-    endif()
-
-    target_link_libraries(yvc_offline_tests
-        PRIVATE
-            yvc_core
-            ${YVC_GTEST_MAIN_TARGET}
-    )
-
-    gtest_discover_tests(yvc_offline_tests)
-endif()
-
-# Windows-specific settings
-if(WIN32)
-    target_compile_definitions(yvc_offline PRIVATE _CRT_SECURE_NO_WARNINGS)
-    # Ensure consistent runtime library
-    set_target_properties(yvc_offline PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
-    )
+    target_link_libraries(yvc_offline_tests PRIVATE yvc_core)
 endif()

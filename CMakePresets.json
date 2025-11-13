@@ -12,19 +12,6 @@
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
             "installDir": "${sourceDir}/out/install/${presetName}",
-            "architecture": {
-                "value": "x64",
-                "strategy": "external"
-            },
-            "toolset": {
-                "value": "host=x64",
-                "strategy": "external"
-            },
-            "condition": {
-                "type": "equals",
-                "lhs": "${hostSystemName}",
-                "rhs": "Windows"
-            },
             "cacheVariables": {
                 "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_CXX_STANDARD_REQUIRED": "ON",
@@ -60,24 +47,63 @@
                 "BUILD_YVC_OFFLINE": "ON",
                 "USE_EIGEN": "OFF"
             }
+        },
+        {
+            "name": "dev-debug",
+            "displayName": "Development Debug (Ninja)",
+            "description": "Developer debug build with logging enabled",
+            "inherits": "windows-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_YVC_APP": "ON",
+                "BUILD_YVC_OFFLINE": "ON",
+                "USE_EIGEN": "OFF",
+                "YVC_ENABLE_FILE_LOG": "ON",
+                "BUILD_TESTING": "ON"
+            }
+        },
+        {
+            "name": "dev-release",
+            "displayName": "Development Release (Ninja)",
+            "description": "Developer release build",
+            "inherits": "windows-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "BUILD_YVC_APP": "ON",
+                "BUILD_YVC_OFFLINE": "ON",
+                "USE_EIGEN": "OFF",
+                "BUILD_TESTING": "OFF"
+            }
         }
     ],
     "buildPresets": [
         {
-            "name": "x64-debug",
+            "name": "build-x64-debug",
             "displayName": "x64 Debug Build",
             "description": "Build Debug configuration",
             "configurePreset": "x64-debug",
-            "configuration": "Debug",
-            "jobs": 0
+            "configuration": "Debug"
         },
         {
-            "name": "x64-release",
-            "displayName": "x64 Release Build", 
+            "name": "build-x64-release",
+            "displayName": "x64 Release Build",
             "description": "Build Release configuration",
             "configurePreset": "x64-release",
-            "configuration": "Release",
-            "jobs": 0
+            "configuration": "Release"
+        },
+        {
+            "name": "build-dev-debug",
+            "displayName": "Dev Debug Build",
+            "description": "Build Dev Debug configuration",
+            "configurePreset": "dev-debug",
+            "configuration": "Debug"
+        },
+        {
+            "name": "build-dev-release",
+            "displayName": "Dev Release Build",
+            "description": "Build Dev Release configuration",
+            "configurePreset": "dev-release",
+            "configuration": "RelWithDebInfo"
         }
     ],
     "testPresets": [

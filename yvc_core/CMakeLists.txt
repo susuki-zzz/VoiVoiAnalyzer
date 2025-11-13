@@ -50,6 +50,9 @@ set(YVC_CORE_HEADERS
 # Create library
 add_library(yvc_core STATIC ${YVC_CORE_SOURCES} ${YVC_CORE_HEADERS})
 
+# Set C++ standard per target (not globally)
+target_compile_features(yvc_core PUBLIC cxx_std_20)
+
 # Threads (needed for std::thread on non-Windows platforms)
 find_package(Threads REQUIRED)
 
@@ -64,18 +67,49 @@ target_include_directories(yvc_core
 
 # Link dependencies
 target_link_libraries(yvc_core
+    PRIVATE
+        $<BUILD_INTERFACE:kissfft>
+        $<INSTALL_INTERFACE:yvc::kissfft>
     PUBLIC
-        kissfft
         Threads::Threads
 )
+
+# Windows-specific settings
+if(WIN32)
+    target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
+    target_link_libraries(yvc_core PRIVATE Crypt32)
+    # Ensure consistent runtime library
+    set_target_properties(yvc_core PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
+endif()
+
+# Compiler warnings and MSVC conforming preprocessor
+if(MSVC)
+    target_compile_options(yvc_core PRIVATE /W4 /Zc:preprocessor)
+else()
+    target_compile_options(yvc_core PRIVATE 
+        -Wall -Wextra -Wpedantic
+        -Wconversion -Wshadow -Wnon-virtual-dtor
+    )
+endif()
+
+# Enable LTO for Release builds
+set_target_properties(yvc_core PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION_RELEASE ON
+    INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ON
+)
+
+# Logging configuration
+if(YVC_ENABLE_FILE_LOG)
+    target_compile_definitions(yvc_core PUBLIC YVC_DEFAULT_FILE_LOG_ENABLED)
+endif()
 
 include(CTest)
 
 # Unit tests
 if(BUILD_TESTING)
-    include(GoogleTest)
-
-    add_executable(yvc_core_tests
+    yvc_add_gtest(yvc_core_tests
         tests/AnalyzerEngineTests.cpp
         tests/AudioBufferTests.cpp
         tests/CPPAnalyzerTests.cpp
@@ -90,50 +124,54 @@ if(BUILD_TESTING)
         tests/TestSignalHelpers.h
     )
 
-    if(NOT YVC_GTEST_MAIN_TARGET)
-        message(FATAL_ERROR "GoogleTest main target not available. Set BUILD_TESTING=OFF to skip tests or provide GTest.")
-    endif()
-
-    target_link_libraries(yvc_core_tests
-        PRIVATE
-            yvc_core
-            ${YVC_GTEST_MAIN_TARGET}
-    )
-
-    target_include_directories(yvc_core_tests
-        PRIVATE
-            ${CMAKE_CURRENT_SOURCE_DIR}/tests
-    )
-
-    gtest_discover_tests(yvc_core_tests)
+    target_link_libraries(yvc_core_tests PRIVATE yvc_core)
+    target_include_directories(yvc_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
     # Logger examples/tests
-    add_executable(yvc_logger_examples
-        tests/LoggerExamples.cpp
-    )
-
-    target_link_libraries(yvc_logger_examples
-        PRIVATE
-            yvc_core
-    )
-
-    # Not added to CTest as it's more of an example program
+    add_executable(yvc_logger_examples tests/LoggerExamples.cpp)
+    target_link_libraries(yvc_logger_examples PRIVATE yvc_core)
 endif()
 
-# Windows-specific settings
-if(WIN32)
-    target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(yvc_core PRIVATE Crypt32)
-    # Ensure consistent runtime library
-    set_target_properties(yvc_core PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
-    )
-endif()
+# Installation rules
+include(GNUInstallDirs)
 
-# Compiler warnings
-if(MSVC)
-    target_compile_options(yvc_core PRIVATE /W4)
-else()
-    target_compile_options(yvc_core PRIVATE -Wall -Wextra -Wpedantic)
-endif()
+install(TARGETS yvc_core
+    EXPORT yvc_coreTargets
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY include/yvc_core
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.h"
+)
+
+install(EXPORT yvc_coreTargets
+    FILE yvc_coreTargets.cmake
+    NAMESPACE yvc::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/yvc_core
+)
+
+# Generate package config file
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/yvc_coreConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/yvc_core
+)
+
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion
+)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/yvc_core
+)
 

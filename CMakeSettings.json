@@ -17,13 +17,13 @@
           "type": "STRING"
         },
         {
-          "name": "CMAKE_CXX_STANDARD_REQUIRED", 
+          "name": "CMAKE_CXX_STANDARD_REQUIRED",
           "value": "ON",
           "type": "BOOL"
         },
         {
           "name": "CMAKE_CXX_EXTENSIONS",
-          "value": "OFF", 
+          "value": "OFF",
           "type": "BOOL"
         },
         {
@@ -51,7 +51,7 @@
     },
     {
       "name": "x64-Release",
-      "generator": "Ninja", 
+      "generator": "Ninja",
       "configurationType": "Release",
       "buildRoot": "${projectDir}\\out\\build\\${name}",
       "installRoot": "${projectDir}\\out\\install\\${name}",
@@ -67,7 +67,7 @@
         },
         {
           "name": "CMAKE_CXX_STANDARD_REQUIRED",
-          "value": "ON", 
+          "value": "ON",
           "type": "BOOL"
         },
         {
@@ -82,7 +82,7 @@
         },
         {
           "name": "BUILD_YVC_OFFLINE",
-          "value": "ON", 
+          "value": "ON",
           "type": "BOOL"
         },
         {
@@ -117,7 +117,7 @@
         {
           "name": "CMAKE_CXX_EXTENSIONS",
           "value": "OFF",
-          "type": "BOOL" 
+          "type": "BOOL"
         },
         {
           "name": "BUILD_YVC_APP",
@@ -130,7 +130,7 @@
           "type": "BOOL"
         },
         {
-          "name": "USE_EIGEN", 
+          "name": "USE_EIGEN",
           "value": "OFF",
           "type": "BOOL"
         },
@@ -169,7 +169,7 @@
           "type": "BOOL"
         },
         {
-          "name": "CMAKE_CXX_EXTENSIONS", 
+          "name": "CMAKE_CXX_EXTENSIONS",
           "value": "OFF",
           "type": "BOOL"
         },
@@ -185,7 +185,7 @@
         },
         {
           "name": "USE_EIGEN",
-          "value": "OFF", 
+          "value": "OFF",
           "type": "BOOL"
         },
         {

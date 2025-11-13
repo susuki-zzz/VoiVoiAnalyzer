@@ -53,6 +53,7 @@ Makefile
 # IDEs
 .vs/
 .vscode/
+.github/copilot-instructions.md
 .idea/
 *.user
 *.suo
