@@ -30,10 +30,12 @@ TEST(SessionPersistenceTests, ManualSavePersistsUpdatedValues) {
     const auto reloaded = uniqueTempFile("yvc_session_verify");
     loader.manualSave(reloaded.string());
 
-    std::ifstream in(reloaded);
-    std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    EXPECT_NE(content.find("mode=standard"), std::string::npos);
-    EXPECT_NE(content.find("fft=2048"), std::string::npos);
+    {
+        std::ifstream in(reloaded);
+        std::string content((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        EXPECT_NE(content.find("mode=standard"), std::string::npos);
+        EXPECT_NE(content.find("fft=2048"), std::string::npos);
+    } // ifstream closes here
 
     std::filesystem::remove(path);
     std::filesystem::remove(reloaded);
