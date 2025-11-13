@@ -50,7 +50,7 @@ std::string escapeJsonString(const std::string& input) {
 namespace yvc {
 
 FileProcessor::FileProcessor()
-    : mode_(PerformanceMode::Diagnostic) {
+    : mode_(PerformanceMode::Mode_Diagnostic) {
 }
 
 void FileProcessor::initializeAnalyzers(const AudioConfig& config) {

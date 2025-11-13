@@ -15,24 +15,17 @@
 #include <atomic>
 #include <cstdio>
 
-// On Windows, other headers may define ERROR as a macro which breaks our enum.
-#ifdef _WIN32
-# ifdef ERROR
-#  undef ERROR
-# endif
-#endif
-
 namespace yvc {
 
 // Log levels (ordered by severity)
 enum class LogLevel {
-    TRACE = 0,  // Detailed trace for deep debugging
-    DEBUG = 1,  // Debug information
-    INFO = 2,   // General information
-    WARN = 3,   // Warning messages
-    ERROR = 4,  // Error messages
-    FATAL = 5,  // Fatal errors (application may crash)
-    OFF = 6     // Logging disabled
+    LOGLV_TRACE = 0,  // Detailed trace for deep debugging
+    LOGLV_DEBUG = 1,  // Debug information
+    LOGLV_INFO = 2,   // General information
+    LOGLV_WARN = 3,   // Warning messages
+    LOGLV_ERROR = 4,  // Error messages
+    LOGLV_FATAL = 5,  // Fatal errors (application may crash)
+    LOGLV_OFF = 6     // Logging disabled
 };
 
 // Convert log level to string
@@ -40,7 +33,7 @@ const char* logLevelToString(LogLevel level);
 
 // Logger configuration
 struct LoggerConfig {
-    LogLevel minLevel = LogLevel::INFO;
+    LogLevel minLevel = LogLevel::LOGLV_INFO;
     bool enableConsole = true;
     bool enableFile = false;
     std::string logFilePath = "voivoi_debug.log";
@@ -131,69 +124,69 @@ private:
 // Convenience macros for logging (wrapped in do-while for safety)
 #define LOG_TRACE(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_TRACE, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 #define LOG_DEBUG(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_DEBUG, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 #define LOG_INFO(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 #define LOG_WARN(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_WARN, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 #define LOG_ERROR(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_ERROR, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 #define LOG_FATAL(msg) \
     do { \
-        yvc::Logger::getInstance().log(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, msg); \
+        yvc::Logger::getInstance().log(yvc::LogLevel::LOGLV_FATAL, __FILE__, __LINE__, __FUNCTION__, msg); \
     } while(0)
 
 // Formatted logging macros without __VA_OPT__ (works for both with/without args)
 #define LOG_TRACEF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::TRACE, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_TRACE, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 #define LOG_DEBUGF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 #define LOG_INFOF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 #define LOG_WARNF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::WARN, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_WARN, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 #define LOG_ERRORF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 #define LOG_FATALF(...) \
     do { \
-        yvc::Logger::getInstance().logf(yvc::LogLevel::FATAL, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
+        yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_FATAL, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
 // Scoped timer for performance profiling
 class ScopedTimer {
 public:
-    ScopedTimer(const char* name, LogLevel level = LogLevel::DEBUG);
+    ScopedTimer(const char* name, LogLevel level = LogLevel::LOGLV_DEBUG);
     ~ScopedTimer();
     
 private:
@@ -204,7 +197,7 @@ private:
 
 // Macro for easy scoped timing
 #define LOG_SCOPE_TIMER(name) yvc::ScopedTimer _scoped_timer_##__LINE__(name)
-#define LOG_SCOPE_TIMER_TRACE(name) yvc::ScopedTimer _scoped_timer_##__LINE__(name, yvc::LogLevel::TRACE)
+#define LOG_SCOPE_TIMER_TRACE(name) yvc::ScopedTimer _scoped_timer_##__LINE__(name, yvc::LogLevel::LOGLV_TRACE)
 
 // Stream-style logging helper
 class LogStream {

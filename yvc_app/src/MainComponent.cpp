@@ -16,14 +16,20 @@ constexpr double kFpsEvaluationWindowMs = 2000.0;
 constexpr double kDegradeThreshold = 0.82;
 }
 
-MainComponent::MainComponent(yvc::MetricsBus& metricsBus)
-    : metricsBus_(metricsBus) {
+MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager)
+    : metricsBus_(metricsBus)
+    , audioDeviceManager_(audioDeviceManager) {
     setSize(kDefaultWidth, kDefaultHeight);
     setOpaque(true);
     
     // Initialize localization
     auto& locManager = LocalizationManager::getInstance();
     locManager.loadLanguagePreference();
+
+    // 現在のデバイス名を settings_ 初期値に反映
+    juce::AudioDeviceManager::AudioDeviceSetup setup;
+    audioDeviceManager_.getAudioDeviceSetup(setup);
+    settings_.inputDeviceName = setup.inputDeviceName;
 
     auto& presets = presetManager_.getPresets();
     int presetId = 1;
@@ -149,7 +155,6 @@ void MainComponent::resized() {
     statusBar_.setBounds(statusArea);
 
     if (settings_.enableAdvancedVisualization && advancedF0Heatmap_ && advancedLevelHeatmap_) {
-        // Advanced layout with enhanced visualization
         auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.4f));
         auto topHeatmap = heatmapArea.removeFromTop(heatmapArea.getHeight() / 2);
         advancedF0Heatmap_->setBounds(topHeatmap);
@@ -173,7 +178,6 @@ void MainComponent::timerCallback() {
     metricsDisplay_.updateMetrics(currentMetrics_);
     heatmapDisplay_.appendSample(currentMetrics_);
     
-    // Update advanced visualizations if enabled
     if (settings_.enableAdvancedVisualization) {
         if (advancedF0Heatmap_) {
             advancedF0Heatmap_->appendSample(currentMetrics_.f0_valid ? currentMetrics_.f0 : 0.0f, 
@@ -202,7 +206,7 @@ void MainComponent::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
 
 void MainComponent::buttonClicked(juce::Button* button) {
     if (button == &settingsButton_) {
-        SettingsDialog::showDialog(settings_, this, [this](bool accepted, const AppSettings& updated) {
+        SettingsDialog::showDialog(settings_, this, audioDeviceManager_, [this](bool accepted, const AppSettings& updated) {
             if (accepted) {
                 auto oldLanguage = settings_.language;
                 settings_ = updated;
@@ -212,6 +216,9 @@ void MainComponent::buttonClicked(juce::Button* button) {
                     LocalizationManager::getInstance().setLanguage(settings_.language);
                     updateUILanguage();
                 }
+
+                // オーディオ設定を反映
+                applyAudioSettings();
                 
                 recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
                 
@@ -242,27 +249,21 @@ void MainComponent::updateStatusBar() {
         currentFps_ = 1000.0 * static_cast<double>(accumulatedFrames_) / accumulatedFrameTimeMs_;
     }
 
-    // Simplified system monitoring for compatibility
-    double cpuUsage = 5.0; // Placeholder - would need platform-specific implementation
+    double cpuUsage = 5.0; // Placeholder
     int memoryUsage = 128;  // Placeholder MB usage
     
-    // Try to get actual memory usage if available
     try {
-        // Use safer method for memory estimation
         auto memSizeMB = static_cast<int>(juce::SystemStats::getMemorySizeInMegabytes() * 0.1);
-        if (memSizeMB > 0 && memSizeMB < 8192) { // Sanity check
+        if (memSizeMB > 0 && memSizeMB < 8192) {
             memoryUsage = memSizeMB;
         }
-    } catch (...) {
-        // Use default on any error
-    }
+    } catch (...) {}
 
     double elapsedSeconds = (now - recordingStartMs_) / 1000.0;
     double remaining = juce::jmax(0.0, settings_.maxRecordingTimeSeconds - elapsedSeconds);
     int minutes = static_cast<int>(remaining) / 60;
     int seconds = static_cast<int>(remaining) % 60;
 
-    // Use safe string formatting
     juce::String fpsStr = TRANS("status_fps") + " " + juce::String(currentFps_, 1);
     juce::String cpuStr = TRANS("status_cpu") + " " + juce::String(cpuUsage, 0) + "%";
     juce::String ramStr = TRANS("status_ram") + " " + juce::String(memoryUsage) + " MB";
@@ -274,10 +275,8 @@ void MainComponent::updateStatusBar() {
 }
 
 void MainComponent::updateUILanguage() {
-    // Update button text
     settingsButton_.setButtonText(TRANS("settings"));
     
-    // Update preset selector items
     presetSelector_.clear();
     auto& presets = presetManager_.getPresets();
     int presetId = 1;
@@ -286,7 +285,6 @@ void MainComponent::updateUILanguage() {
     }
     presetSelector_.setSelectedId(1);
     
-    // Update current preset description
     const auto& currentPreset = presetManager_.getActivePreset();
     presetDescription_.setText(TRANS(currentPreset.descriptionKey), juce::dontSendNotification);
     
@@ -294,7 +292,6 @@ void MainComponent::updateUILanguage() {
 }
 
 void MainComponent::updateVisualizationLayout() {
-    // Remove old visualization components
     if (advancedF0Heatmap_) {
         removeChildComponent(advancedF0Heatmap_.get());
         advancedF0Heatmap_.reset();
@@ -308,7 +305,6 @@ void MainComponent::updateVisualizationLayout() {
         spectrumAnalyzer_.reset();
     }
     
-    // Add new components based on settings
     if (settings_.enableAdvancedVisualization) {
         advancedF0Heatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_f0"));
         advancedLevelHeatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_level"));
@@ -316,7 +312,6 @@ void MainComponent::updateVisualizationLayout() {
         addAndMakeVisible(advancedF0Heatmap_.get());
         addAndMakeVisible(advancedLevelHeatmap_.get());
         
-        // Configure heatmaps
         AdvancedHeatmapComponent::HeatmapConfig f0Config;
         f0Config.minValue = 60.0f;
         f0Config.maxValue = 400.0f;
@@ -370,6 +365,24 @@ void MainComponent::configureTimerForCurrentBudget() {
         degradationNotice_.setVisible(false);
         degradationNoticeExpiryMs_ = 0;
     }
+}
+
+void MainComponent::applyAudioSettings() {
+    juce::AudioDeviceManager::AudioDeviceSetup setup;
+    audioDeviceManager_.getAudioDeviceSetup(setup);
+
+    // 入力デバイス名
+    if (settings_.inputDeviceName.isNotEmpty())
+        setup.inputDeviceName = settings_.inputDeviceName;
+
+    // サンプルレート / バッファ
+    if (settings_.sampleRate > 0)
+        setup.sampleRate = static_cast<double>(settings_.sampleRate);
+    if (settings_.bufferSize > 0)
+        setup.bufferSize = settings_.bufferSize;
+
+    // デバイス適用（WASAPI想定）
+    audioDeviceManager_.setAudioDeviceSetup(setup, true);
 }
 
 } // namespace yvc::app

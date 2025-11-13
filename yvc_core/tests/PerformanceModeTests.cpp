@@ -35,9 +35,9 @@ INSTANTIATE_TEST_SUITE_P(
     PerformanceModes,
     PerformanceModeFixture,
     ::testing::Values(
-        PerformanceExpectation{PerformanceMode::Light, 1024, 512, false},
-        PerformanceExpectation{PerformanceMode::Standard, 2048, 512, true},
-        PerformanceExpectation{PerformanceMode::Diagnostic, 4096, 1024, true}));
+        PerformanceExpectation{PerformanceMode::Mode_Light, 1024, 512, false},
+        PerformanceExpectation{PerformanceMode::Mode_Standard, 2048, 512, true},
+        PerformanceExpectation{PerformanceMode::Mode_Diagnostic, 4096, 1024, true}));
 
 } // namespace
 } // namespace yvc::test

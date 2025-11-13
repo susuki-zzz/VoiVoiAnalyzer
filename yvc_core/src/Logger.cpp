@@ -23,14 +23,14 @@ namespace yvc {
 // Convert log level to string
 const char* logLevelToString(LogLevel level) {
     switch (level) {
-        case LogLevel::TRACE: return "TRACE";
-        case LogLevel::DEBUG: return "DEBUG";
-        case LogLevel::INFO:  return "INFO ";
-        case LogLevel::WARN:  return "WARN ";
-        case LogLevel::ERROR: return "ERROR";
-        case LogLevel::FATAL: return "FATAL";
-        case LogLevel::OFF:   return "OFF  ";
-        default:              return "UNKNW";
+        case LogLevel::LOGLV_TRACE: return "TRACE";
+        case LogLevel::LOGLV_DEBUG: return "DEBUG";
+        case LogLevel::LOGLV_INFO:  return "INFO ";
+        case LogLevel::LOGLV_WARN:  return "WARN ";
+        case LogLevel::LOGLV_ERROR: return "ERROR";
+        case LogLevel::LOGLV_FATAL: return "FATAL";
+        case LogLevel::LOGLV_OFF:   return "OFF  ";
+        default:                    return "UNKNW";
     }
 }
 
@@ -41,9 +41,9 @@ Logger& Logger::getInstance() {
     return instance;
 }
 
-Logger::Logger() : minLevel_(LogLevel::INFO), isShutdown_(false) {
+Logger::Logger() : minLevel_(LogLevel::LOGLV_INFO), isShutdown_(false) {
     // Default configuration
-    config_.minLevel = LogLevel::INFO;
+    config_.minLevel = LogLevel::LOGLV_INFO;
     config_.enableConsole = true;
     config_.enableFile = false;
 }
@@ -149,7 +149,7 @@ void Logger::shutdown() {
 
 void Logger::writeToConsole(LogLevel level, const std::string& message) {
     // Use stderr for WARN and above, stdout for INFO and below
-    auto& stream = (level >= LogLevel::WARN) ? std::cerr : std::cout;
+    auto& stream = (level >= LogLevel::LOGLV_WARN) ? std::cerr : std::cout;
     stream << message << std::endl;
     
     // Also output to debugger on Windows

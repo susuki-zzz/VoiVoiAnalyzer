@@ -25,7 +25,7 @@ TEST(LoggerTests, RotatesWhenFileReachesLimit) {
     }
 
     LoggerConfig config;
-    config.minLevel = LogLevel::TRACE;
+    config.minLevel = LogLevel::LOGLV_TRACE;
     config.enableConsole = false;
     config.enableFile = true;
     config.logFilePath = log_path.string();
@@ -35,7 +35,7 @@ TEST(LoggerTests, RotatesWhenFileReachesLimit) {
     logger.configure(config);
 
     for (int i = 0; i < 200; ++i) {
-        logger.log(LogLevel::INFO, __FILE__, __LINE__, __FUNCTION__, "Filling log file with data");
+        logger.log(LogLevel::LOGLV_INFO, __FILE__, __LINE__, __FUNCTION__, "Filling log file with data");
     }
     logger.flush();
 
@@ -55,7 +55,7 @@ TEST(LoggerTests, ThreadSafeLogging) {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::DEBUG;
+    config.minLevel = LogLevel::LOGLV_DEBUG;
     config.enableConsole = false;
     config.enableFile = false;
     logger.configure(config);
@@ -89,7 +89,7 @@ TEST(LoggerTests, MinLevelThreadSafe) {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::INFO;
+    config.minLevel = LogLevel::LOGLV_INFO;
     config.enableConsole = false;
     config.enableFile = false;
     logger.configure(config);
@@ -100,9 +100,9 @@ TEST(LoggerTests, MinLevelThreadSafe) {
     // Thread that changes log level
     std::thread configThread([&]() {
         for (int i = 0; i < 50; ++i) {
-            logger.setMinLevel(LogLevel::DEBUG);
+            logger.setMinLevel(LogLevel::LOGLV_DEBUG);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            logger.setMinLevel(LogLevel::WARN);
+            logger.setMinLevel(LogLevel::LOGLV_WARN);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         stopFlag.store(true);
@@ -111,11 +111,11 @@ TEST(LoggerTests, MinLevelThreadSafe) {
     // Thread that logs
     std::thread logThread([&]() {
         while (!stopFlag.load()) {
-            if (logger.shouldLog(LogLevel::DEBUG)) {
+            if (logger.shouldLog(LogLevel::LOGLV_DEBUG)) {
                 LOG_DEBUG("Debug message");
                 logCount.fetch_add(1);
             }
-            if (logger.shouldLog(LogLevel::WARN)) {
+            if (logger.shouldLog(LogLevel::LOGLV_WARN)) {
                 LOG_WARN("Warning message");
                 logCount.fetch_add(1);
             }
@@ -133,7 +133,7 @@ TEST(LoggerTests, FormattedLoggingNoArgs) {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::INFO;
+    config.minLevel = LogLevel::LOGLV_INFO;
     config.enableConsole = false;
     config.enableFile = false;
     logger.configure(config);
@@ -147,7 +147,7 @@ TEST(LoggerTests, FormattedLoggingWithArgs) {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::INFO;
+    config.minLevel = LogLevel::LOGLV_INFO;
     config.enableConsole = false;
     config.enableFile = false;
     logger.configure(config);
@@ -161,7 +161,7 @@ TEST(LoggerTests, ScopedTimerBasic) {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::DEBUG;
+    config.minLevel = LogLevel::LOGLV_DEBUG;
     config.enableConsole = false;
     config.enableFile = false;
     logger.configure(config);
@@ -175,11 +175,11 @@ TEST(LoggerTests, ScopedTimerBasic) {
 }
 
 TEST(LoggerTests, LogLevelOrdering) {
-    EXPECT_LT(static_cast<int>(LogLevel::TRACE), static_cast<int>(LogLevel::DEBUG));
-    EXPECT_LT(static_cast<int>(LogLevel::DEBUG), static_cast<int>(LogLevel::INFO));
-    EXPECT_LT(static_cast<int>(LogLevel::INFO), static_cast<int>(LogLevel::WARN));
-    EXPECT_LT(static_cast<int>(LogLevel::WARN), static_cast<int>(LogLevel::ERROR));
-    EXPECT_LT(static_cast<int>(LogLevel::ERROR), static_cast<int>(LogLevel::FATAL));
+    EXPECT_LT(static_cast<int>(LogLevel::LOGLV_TRACE), static_cast<int>(LogLevel::LOGLV_DEBUG));
+    EXPECT_LT(static_cast<int>(LogLevel::LOGLV_DEBUG), static_cast<int>(LogLevel::LOGLV_INFO));
+    EXPECT_LT(static_cast<int>(LogLevel::LOGLV_INFO), static_cast<int>(LogLevel::LOGLV_WARN));
+    EXPECT_LT(static_cast<int>(LogLevel::LOGLV_WARN), static_cast<int>(LogLevel::LOGLV_ERROR));
+    EXPECT_LT(static_cast<int>(LogLevel::LOGLV_ERROR), static_cast<int>(LogLevel::LOGLV_FATAL));
 }
 
 } // namespace

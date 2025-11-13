@@ -14,6 +14,11 @@ std::unique_ptr<IAudioBackend> createPlatformBackend() {
 #endif
 }
 
+#if !YVC_CORE_HAVE_WASAPI
+std::unique_ptr<IAudioBackend> createWasapiBackend() { return {}; }
+bool hasWasapiBackend() { return false; }
+#endif
+
 bool hasCoreAudioBackend() {
 #if YVC_CORE_HAVE_COREAUDIO
     return true;
@@ -24,14 +29,6 @@ bool hasCoreAudioBackend() {
 
 bool hasAlsaBackend() {
 #if YVC_CORE_HAVE_ALSA
-    return true;
-#else
-    return false;
-#endif
-}
-
-bool hasWasapiBackend() {
-#if YVC_CORE_HAVE_WASAPI
     return true;
 #else
     return false;

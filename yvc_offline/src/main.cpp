@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
     
     #ifdef NDEBUG
     // Release build - minimal logging to console
-    logConfig.minLevel = yvc::LogLevel::INFO;
+    logConfig.minLevel = yvc::LogLevel::LOGLV_INFO;
     logConfig.enableFile = false;
     logConfig.enableConsole = true;
     logConfig.includeTimestamp = false;
@@ -36,7 +36,7 @@ int main(int argc, char* argv[]) {
     logConfig.includeSourceLocation = false;
     #else
     // Debug build - verbose logging
-    logConfig.minLevel = yvc::LogLevel::DEBUG;
+    logConfig.minLevel = yvc::LogLevel::LOGLV_DEBUG;
     logConfig.enableFile = true;
     logConfig.enableConsole = true;
     logConfig.logFilePath = "voivoi_offline_debug.log";
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
     
     std::string input_file;
     std::string output_file;
-    yvc::PerformanceMode mode = yvc::PerformanceMode::Diagnostic;
+    yvc::PerformanceMode mode = yvc::PerformanceMode::Mode_Diagnostic;
     
     // Parse command line arguments
     for (int i = 1; i < argc; ++i) {
@@ -68,11 +68,11 @@ int main(int argc, char* argv[]) {
             if (i + 1 < argc) {
                 std::string mode_str = argv[++i];
                 if (mode_str == "light") {
-                    mode = yvc::PerformanceMode::Light;
+                    mode = yvc::PerformanceMode::Mode_Light;
                 } else if (mode_str == "standard") {
-                    mode = yvc::PerformanceMode::Standard;
+                    mode = yvc::PerformanceMode::Mode_Standard;
                 } else if (mode_str == "diagnostic") {
-                    mode = yvc::PerformanceMode::Diagnostic;
+                    mode = yvc::PerformanceMode::Mode_Diagnostic;
                 } else {
                     LOG_ERRORF("Unknown mode: %s", mode_str.c_str());
                     return 1;

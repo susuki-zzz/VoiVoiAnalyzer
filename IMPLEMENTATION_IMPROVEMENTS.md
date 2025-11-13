@@ -156,6 +156,110 @@ YIN アルゴリズム → F0候補 + confidence
 
 ---
 
+### 4. 設定ウィンドウ (SettingsComponent)
+
+**機能:**
+- **オーディオデバイス選択**: 利用可能なすべての入力デバイスを列挙、デフォルト推奨
+- **サンプルレート設定**: Auto (48kHz優先) / 44.1k / 48k / 88.2k / 96k
+- **バッファサイズ表示**: OS既定値（変更不可、最適レイテンシ）
+- **パフォーマンスモード**: Light / Normal / Diagnostic（FFTサイズ、ホップサイズ、レイテンシ目標表示）
+- **ライブ録音制限**: 5〜120分（Desktop既定60分）
+- **自動保存オプション**: 有効/無効、停止時保存、制限時保存
+
+**実装:**
+```cpp
+// yvc_app/include/SettingsComponent.h
+class SettingsComponent : public juce::Component {
+    struct Settings {
+        std::string inputDeviceId;
+        std::string inputDeviceName;
+        yvc::SampleRate sampleRate;
+        size_t bufferSize;
+        yvc::PerformanceMode performanceMode;
+        int liveMaxMinutes;
+        bool autoSaveEnabled;
+        bool autoSaveOnStop;
+        bool autoSaveOnLimit;
+    };
+    
+    std::function<void(const Settings&)> onSettingsChanged;
+};
+
+class SettingsWindow : public juce::DocumentWindow {
+    // 独立ウィンドウとして動作
+};
+```
+
+**UI 構成:**
+- デバイス情報（チャネル数、サンプルレート）表示
+- パフォーマンスモード説明テキスト
+- スライダー + ラベル（ライブ時間）
+- トグルボタン（自動保存）
+- Apply / Cancel / Restore Defaults ボタン
+
+---
+
+### 5. オーディオ入力マネージャー (AudioInputManager)
+
+**機能:**
+- **プラットフォーム自動検出**: WASAPI (Windows) / CoreAudio (macOS) / ALSA (Linux)
+- **デバイス管理**: ID指定またはデフォルトデバイスオープン
+- **ロックフリーバッファ統合**: 2秒分のリングバッファ（96000サンプル × 2）
+- **XRun検出**: バッファオーバーフロー自動検出とコールバック
+- **統計収集**: サンプル数、コールバック回数、平均時間、Peak/RMS レベル
+
+**実装:**
+```cpp
+// yvc_app/include/AudioInputManager.h
+class AudioInputManager {
+public:
+    bool openDevice(const std::string& deviceId, yvc::SampleRate sampleRate, size_t bufferSize);
+    bool openDefaultDevice(yvc::SampleRate sampleRate, size_t bufferSize);
+    void start();
+    void stop();
+    
+    // 解析スレッド用（ノンブロッキング）
+    size_t readAudioData(float* buffer, size_t numSamples);
+    size_t getAvailableSamples() const;
+    
+    struct Statistics {
+        uint64_t totalSamplesReceived;
+        uint64_t totalCallbacks;
+        uint32_t xruns;
+        double averageCallbackTime;
+        double peakLevel;
+        double rmsLevel;
+    };
+    
+    Statistics getStatistics() const;
+    
+    std::function<void()> onXRun;
+    std::function<void()> onDeviceError;
+};
+```
+
+**スレッドモデル:**
+```
+[Audio Thread]           [Analysis Thread]        [GUI Thread]
+  WASAPI callback    →  Ring Buffer Write
+                              ↓
+                         Ring Buffer Read
+                         analyze(...)
+                              ↓
+                         MetricsBus.update()
+                              ↓                      ↓
+                                               Timer callback
+                                               MetricsBus.swap()
+                                               repaint()
+```
+
+**パフォーマンス特性:**
+- オーディオコールバック: <1ms（統計更新含む）
+- XRun検出: オーバーフロー時に即座に通知
+- 統計計算: 指数移動平均（EMA）でRMS平滑化
+
+---
+
 ## テストカバレッジ
 
 ### LockFreeRingBuffer

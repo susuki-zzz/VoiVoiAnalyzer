@@ -37,7 +37,7 @@ public:
         auto& logger = ::yvc::Logger::getInstance();
         ::yvc::LoggerConfig logConfig;
 #ifndef NDEBUG
-        logConfig.minLevel = ::yvc::LogLevel::DEBUG;
+        logConfig.minLevel = ::yvc::LogLevel::LOGLV_DEBUG;
         logConfig.enableFile = true;
         logConfig.enableConsole = true;
         logConfig.logFilePath = "voivoi_app_debug.log";
@@ -46,43 +46,53 @@ public:
         logConfig.includeThreadId = true;
         logConfig.includeSourceLocation = true;
 #else
-        logConfig.minLevel = ::yvc::LogLevel::WARN;
+        logConfig.minLevel = ::yvc::LogLevel::LOGLV_WARN;
         logConfig.enableFile = false;
         logConfig.enableConsole = false;
 #endif
         logger.configure(logConfig);
-        logger.log(::yvc::LogLevel::INFO, __FILE__, __LINE__, __func__, "VoiVoi Analyzer application starting");
+        logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "VoiVoi Analyzer application starting");
         {
             std::string msg = std::string("Command line: ") + commandLineParameters.toRawUTF8();
-            logger.log(::yvc::LogLevel::DEBUG, __FILE__, __LINE__, __func__, msg);
+            logger.log(::yvc::LogLevel::LOGLV_DEBUG, __FILE__, __LINE__, __func__, msg);
         }
 
         ::yvc::app::LocalizationManager::getInstance().loadLanguagePreference();
-        logger.log(::yvc::LogLevel::DEBUG, __FILE__, __LINE__, __func__, "Localization system initialized");
+        logger.log(::yvc::LogLevel::LOGLV_DEBUG, __FILE__, __LINE__, __func__, "Localization system initialized");
 
         audioDeviceManager_ = std::make_unique<juce::AudioDeviceManager>();
         juce::String audioError = audioDeviceManager_->initialise(1, 0, nullptr, true);
         if (audioError.isNotEmpty()) {
             std::string msg = std::string("Audio device initialization warning: ") + audioError.toRawUTF8();
-            logger.log(::yvc::LogLevel::WARN, __FILE__, __LINE__, __func__, msg);
+            logger.log(::yvc::LogLevel::LOGLV_WARN, __FILE__, __LINE__, __func__, msg);
         } else {
-            logger.log(::yvc::LogLevel::INFO, __FILE__, __LINE__, __func__, "Audio device initialized successfully");
+            logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Audio device initialized successfully");
         }
 
         metricsBus_ = std::make_unique<::yvc::MetricsBus>();
-        logger.log(::yvc::LogLevel::DEBUG, __FILE__, __LINE__, __func__, "Metrics bus created");
+        logger.log(::yvc::LogLevel::LOGLV_DEBUG, __FILE__, __LINE__, __func__, "Metrics bus created");
 
         mainWindow_.reset(new MainWindow(getApplicationName(), *metricsBus_, *audioDeviceManager_));
-        logger.log(::yvc::LogLevel::INFO, __FILE__, __LINE__, __func__, "Main window created and shown");
+        logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Main window created and shown");
     }
 
     void shutdown() override {
         auto& logger = ::yvc::Logger::getInstance();
-        logger.log(::yvc::LogLevel::INFO, __FILE__, __LINE__, __func__, "Application shutting down");
+        logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Application shutting down");
+
+        // Destroy window (and contained MainComponent with Timer) first.
         mainWindow_ = nullptr;
+
+        // Process any pending Timer callbacks synchronously while MessageManager is still alive.
+        juce::Timer::callPendingTimersSynchronously();
+        // Post a no-op async message to flush the queue if possible.
+        juce::MessageManager::callAsync([](){});
+
+        // Release other resources next.
         metricsBus_.reset();
         audioDeviceManager_.reset();
-        logger.log(::yvc::LogLevel::INFO, __FILE__, __LINE__, __func__, "Application shutdown complete");
+
+        logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Application shutdown complete");
         ::yvc::Logger::getInstance().shutdown();
     }
 
@@ -98,11 +108,13 @@ private:
             : juce::DocumentWindow(name,
                   juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId),
                   juce::DocumentWindow::allButtons),
-              audioDeviceManager_(audioManager) {
+              audioDeviceManager_(audioManager)
+        {
+            configurePropertiesStorage();
             setUsingNativeTitleBar(true);
             setResizable(true, true);
             setResizeLimits(::yvc::app::kMinWindowWidth, ::yvc::app::kMinWindowHeight, 2400, 1800);
-            setContentOwned(new ::yvc::app::MainComponent(bus), true);
+            setContentOwned(new ::yvc::app::MainComponent(bus, audioDeviceManager_), true);
             centreWithSize(::yvc::app::kDefaultWindowWidth, ::yvc::app::kDefaultWindowHeight);
             setVisible(true);
             if (juce::RuntimePermissions::isRequired(juce::RuntimePermissions::recordAudio)) {
@@ -120,18 +132,24 @@ private:
         ~MainWindow() override { setContentComponent(nullptr); }
         void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
         void moved() override {
-            auto& appProps = getApplicationProperties();
-            if (auto* s = appProps.getUserSettings()) { s->setValue("windowX", getX()); s->setValue("windowY", getY()); s->saveIfNeeded(); }
+            if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowX", getX()); s->setValue("windowY", getY()); s->saveIfNeeded(); }
         }
         void resized() override {
             DocumentWindow::resized();
-            auto& appProps = getApplicationProperties();
-            if (auto* s = appProps.getUserSettings()) { s->setValue("windowWidth", getWidth()); s->setValue("windowHeight", getHeight()); s->saveIfNeeded(); }
+            if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowWidth", getWidth()); s->setValue("windowHeight", getHeight()); s->saveIfNeeded(); }
         }
     private:
         juce::AudioDeviceManager& audioDeviceManager_;
-        juce::ApplicationProperties& getApplicationProperties() {
-            static juce::ApplicationProperties props; static bool init = false; if (!init) { juce::PropertiesFile::Options o; o.applicationName = JUCE_APPLICATION_NAME_STRING; o.filenameSuffix = ".settings"; o.osxLibrarySubFolder = "Application Support"; o.folderName = "VoiVoi"; props.setStorageParameters(o); init = true; } return props; }
+        juce::ApplicationProperties appProperties_; // non-static to ensure deterministic destruction order
+
+        void configurePropertiesStorage() {
+            juce::PropertiesFile::Options o;
+            o.applicationName = JUCE_APPLICATION_NAME_STRING;
+            o.filenameSuffix = ".settings";
+            o.osxLibrarySubFolder = "Application Support";
+            o.folderName = "VoiVoi";
+            appProperties_.setStorageParameters(o);
+        }
     };
 
     std::unique_ptr<MainWindow> mainWindow_;

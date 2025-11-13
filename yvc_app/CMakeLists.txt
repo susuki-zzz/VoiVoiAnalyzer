@@ -102,6 +102,8 @@ if(JUCE_FOUND)
             src/MetricsComponents.cpp
             src/PresetManager.cpp
             src/SettingsDialog.cpp
+            src/SettingsComponent.cpp
+            src/AudioInputManager.cpp
             src/LocalizationManager.cpp
             src/VisualizationComponents.cpp
     )

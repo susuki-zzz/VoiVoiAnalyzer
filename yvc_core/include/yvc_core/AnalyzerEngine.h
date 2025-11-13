@@ -18,7 +18,7 @@ namespace yvc {
 // aggregated metrics via the MetricsBus.
 class AnalyzerEngine {
 public:
-    AnalyzerEngine(const AudioConfig& config, MetricsBus& bus, PerformanceMode mode = PerformanceMode::Standard);
+    AnalyzerEngine(const AudioConfig& config, MetricsBus& bus, PerformanceMode mode = PerformanceMode::Mode_Standard);
 
     // Process a block of audio samples. When enough samples are accumulated for
     // the configured FFT size a new set of AnalysisResults is produced and

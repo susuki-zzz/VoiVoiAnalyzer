@@ -30,8 +30,8 @@ void example_stream_logging() {
     int count = 10;
     std::string name = "test";
     
-    LOG_STREAM(LogLevel::INFO) << "Count: " << count << ", Name: " << name;
-    LOG_STREAM(LogLevel::DEBUG) << "Complex object: " << "{ id: 123, value: 456 }";
+    LOG_STREAM(LogLevel::LOGLV_INFO) << "Count: " << count << ", Name: " << name;
+    LOG_STREAM(LogLevel::LOGLV_DEBUG) << "Complex object: " << "{ id: 123, value: 456 }";
 }
 
 // Example 3: Scoped timing
@@ -89,7 +89,7 @@ void example_log_levels() {
     
     // Configure to show all levels
     LoggerConfig config = logger.getConfig();
-    config.minLevel = LogLevel::TRACE;
+    config.minLevel = LogLevel::LOGLV_TRACE;
     logger.configure(config);
     
     LOG_TRACE("Trace message - very detailed");
@@ -100,7 +100,7 @@ void example_log_levels() {
     LOG_FATAL("Fatal message - critical failure");
     
     // Change to INFO level
-    logger.setMinLevel(LogLevel::INFO);
+    logger.setMinLevel(LogLevel::LOGLV_INFO);
     LOG_DEBUG("This debug message won't be shown");
     LOG_INFO("This info message will be shown");
 }
@@ -112,7 +112,7 @@ void example_file_logging() {
     auto& logger = Logger::getInstance();
     
     LoggerConfig config;
-    config.minLevel = LogLevel::DEBUG;
+    config.minLevel = LogLevel::LOGLV_DEBUG;
     config.enableConsole = true;
     config.enableFile = true;
     config.logFilePath = "voivoi_test.log";
@@ -182,7 +182,7 @@ int main() {
     // Initialize logger with default config
     auto& logger = Logger::getInstance();
     LoggerConfig config;
-    config.minLevel = LogLevel::DEBUG;
+    config.minLevel = LogLevel::LOGLV_DEBUG;
     config.enableConsole = true;
     config.includeTimestamp = true;
     config.includeThreadId = true;

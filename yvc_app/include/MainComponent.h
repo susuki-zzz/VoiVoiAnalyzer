@@ -5,6 +5,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
+#include <juce_audio_devices/juce_audio_devices.h>
 
 #include <array>
 
@@ -26,7 +27,7 @@ class MainComponent : public juce::Component,
                       private juce::ComboBox::Listener,
                       private juce::Button::Listener {
 public:
-    explicit MainComponent(yvc::MetricsBus& metricsBus);
+    explicit MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager);
     ~MainComponent() override;
 
     void paint(juce::Graphics& g) override;
@@ -44,8 +45,10 @@ private:
     void updateVisualizationLayout();
     void evaluateFrameBudget();
     void configureTimerForCurrentBudget();
+    void applyAudioSettings(); // 追加: デバイス/レート/バッファ適用
 
     yvc::MetricsBus& metricsBus_;
+    juce::AudioDeviceManager& audioDeviceManager_;
     yvc::AnalysisResults currentMetrics_;
     MetricsDisplayComponent metricsDisplay_;
     HeatmapComponent heatmapDisplay_;

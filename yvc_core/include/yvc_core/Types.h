@@ -22,9 +22,9 @@ constexpr SampleRate SAMPLE_RATE_44_1K = 44100;
 
 // Performance modes with latency targets
 enum class PerformanceMode {
-    Light,      // ≤ 40ms latency
-    Standard,   // ≤ 60ms latency  
-    Diagnostic  // ≤ 80ms latency
+    Mode_Light,      // ≤ 40ms latency
+    Mode_Standard,   // ≤ 60ms latency  
+    Mode_Diagnostic  // ≤ 80ms latency
 };
 
 // Analysis results structure
@@ -65,7 +65,7 @@ struct AudioConfig {
     SampleRate sample_rate = SAMPLE_RATE_48K;
     uint32_t buffer_size = 512;
     uint8_t num_channels = 1;  // Mono analysis
-    PerformanceMode mode = PerformanceMode::Standard;
+    PerformanceMode mode = PerformanceMode::Mode_Standard;
     uint32_t fft_size = 2048;
     uint32_t hop_size = 512;
 };

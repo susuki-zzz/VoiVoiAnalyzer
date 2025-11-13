@@ -107,7 +107,7 @@ TEST(AnalyzerEnginePerformanceModeTest, SwitchingModesResetsTimestampsAndWindowi
     config.sample_rate = SAMPLE_RATE_48K;
 
     MetricsBus bus;
-    AnalyzerEngine engine(config, bus, PerformanceMode::Standard);
+    AnalyzerEngine engine(config, bus, PerformanceMode::Mode_Standard);
 
     const auto initial_fft = static_cast<size_t>(engine.getFFTSize());
     const auto initial_hop = static_cast<size_t>(engine.getHopSize());
@@ -118,10 +118,10 @@ TEST(AnalyzerEnginePerformanceModeTest, SwitchingModesResetsTimestampsAndWindowi
     AnalysisResults first_results{};
     ASSERT_TRUE(bus.read(first_results));
     EXPECT_TRUE(approximatelyEqual(first_results.timestamp, 1.0, 1e-6));
-    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Standard);
+    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Mode_Standard);
 
-    engine.setPerformanceMode(PerformanceMode::Diagnostic);
-    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Diagnostic);
+    engine.setPerformanceMode(PerformanceMode::Mode_Diagnostic);
+    EXPECT_EQ(engine.getPerformanceMode(), PerformanceMode::Mode_Diagnostic);
     EXPECT_GT(engine.getFFTSize(), initial_fft);
     EXPECT_GT(engine.getHopSize(), initial_hop);
 
@@ -158,9 +158,9 @@ TEST(AnalyzerEngineVADTest, SustainedSpeechRateRemainsInExpectedRange) {
 
 INSTANTIATE_TEST_SUITE_P(AllPerformanceModes,
                          AnalyzerEngineFixture,
-                         ::testing::Values(PerformanceMode::Light,
-                                           PerformanceMode::Standard,
-                                           PerformanceMode::Diagnostic));
+                         ::testing::Values(PerformanceMode::Mode_Light,
+                                           PerformanceMode::Mode_Standard,
+                                           PerformanceMode::Mode_Diagnostic));
 
 } // namespace
 } // namespace yvc::test

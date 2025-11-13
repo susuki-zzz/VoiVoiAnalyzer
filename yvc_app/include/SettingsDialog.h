@@ -4,6 +4,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_audio_devices/juce_audio_devices.h>
 #include "LocalizationManager.h"
 
 #include <functional>
@@ -21,6 +22,7 @@ struct AppSettings {
     bool enableAdvancedVisualization = true;
     bool showSpectralAnalysis = false;
     int heatmapResolution = 1; // 1=high, 2=medium, 3=low
+    juce::String inputDeviceName; // 追加: 入力デバイス名
 };
 
 class SettingsDialog : public juce::Component,
@@ -29,14 +31,14 @@ class SettingsDialog : public juce::Component,
 public:
     using OnClose = std::function<void(bool, const AppSettings&)>;
 
-    static void showDialog(const AppSettings& currentSettings, juce::Component* parent, OnClose onClose);
+    static void showDialog(const AppSettings& currentSettings, juce::Component* parent, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose);
 
     void resized() override;
     void paint(juce::Graphics& g) override;
     ~SettingsDialog() override;
 
 private:
-    SettingsDialog(const AppSettings& currentSettings, OnClose onClose);
+    SettingsDialog(const AppSettings& currentSettings, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose);
 
     void buttonClicked(juce::Button* button) override;
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
@@ -46,9 +48,12 @@ private:
     void updateUILanguage();
     void createTabbedInterface();
     void layoutTabItems(juce::Component* tab, const std::vector<std::pair<juce::Component*, juce::Component*>>& items);
+    void populateAudioDeviceList();
+    void populateSampleRateAndBufferBoxes();
 
     AppSettings workingCopy_;
     OnClose onClose_;
+    juce::AudioDeviceManager* audioDeviceManager_ = nullptr;
 
     // Main UI
     juce::Label titleLabel_;
@@ -58,6 +63,8 @@ private:
     
     // Audio Settings Tab
     juce::Component audioTab_;
+    juce::Label inputDeviceLabel_;
+    juce::ComboBox inputDeviceBox_;
     juce::ComboBox sampleRateBox_;
     juce::ComboBox bufferSizeBox_;
     juce::ComboBox performanceModeBox_;

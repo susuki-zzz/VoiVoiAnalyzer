@@ -9,19 +9,19 @@ PerformanceModeConfig::PerformanceModeConfig(PerformanceMode mode)
     : mode_(mode) {
     
     switch (mode) {
-        case PerformanceMode::Light:
+        case PerformanceMode::Mode_Light:
             max_latency_ms_ = 40.0f;
             fft_size_ = 1024;
             hop_size_ = 512;
             break;
             
-        case PerformanceMode::Standard:
+        case PerformanceMode::Mode_Standard:
             max_latency_ms_ = 60.0f;
             fft_size_ = 2048;
             hop_size_ = 512;
             break;
             
-        case PerformanceMode::Diagnostic:
+        case PerformanceMode::Mode_Diagnostic:
             max_latency_ms_ = 80.0f;
             fft_size_ = 4096;
             hop_size_ = 1024;
@@ -31,7 +31,7 @@ PerformanceModeConfig::PerformanceModeConfig(PerformanceMode mode)
 
 bool PerformanceModeConfig::isFeatureEnabled(const std::string& feature) const {
     // In Light mode, some advanced features may be disabled
-    if (mode_ == PerformanceMode::Light) {
+    if (mode_ == PerformanceMode::Mode_Light) {
         if (feature == "cpp" || feature == "spectral_tilt") {
             return false;  // Disable expensive features in light mode
         }

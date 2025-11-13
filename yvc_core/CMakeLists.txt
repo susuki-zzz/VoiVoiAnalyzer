@@ -24,6 +24,7 @@ set(YVC_CORE_SOURCES
     src/audio/AudioBackendFactory.cpp
     src/audio/CoreAudioBackend.cpp
     src/audio/AlsaAudioBackend.cpp
+    src/audio/WasapiAudioBackend.cpp
 )
 
 # Core library headers
@@ -97,12 +98,8 @@ endif()
 if(WIN32)
     target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(yvc_core PRIVATE Crypt32)
-    list(APPEND YVC_CORE_SOURCES src/audio/WasapiAudioBackend.cpp)
     target_compile_definitions(yvc_core PUBLIC YVC_CORE_HAVE_WASAPI=1)
-    # Ensure consistent runtime library
-    set_target_properties(yvc_core PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
-    )
+    set_target_properties(yvc_core PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 
 # Compiler warnings and MSVC conforming preprocessor
@@ -153,11 +150,8 @@ if(BUILD_TESTING)
         tests/LockFreeRingBufferTests.cpp
         tests/TestSignalHelpers.h
     )
-
     target_link_libraries(yvc_core_tests PRIVATE yvc_core)
     target_include_directories(yvc_core_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
-
-    # Logger examples/tests
     add_executable(yvc_logger_examples tests/LoggerExamples.cpp)
     target_link_libraries(yvc_logger_examples PRIVATE yvc_core)
 endif()
@@ -184,21 +178,17 @@ install(EXPORT yvc_coreTargets
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/yvc_core
 )
 
-# Generate package config file
 include(CMakePackageConfigHelpers)
-
 configure_package_config_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/yvc_coreConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/yvc_core
 )
-
 write_basic_package_version_file(
     ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfigVersion.cmake
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
-
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/yvc_coreConfigVersion.cmake

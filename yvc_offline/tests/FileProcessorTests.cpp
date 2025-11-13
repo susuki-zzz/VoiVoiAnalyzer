@@ -93,7 +93,7 @@ TEST(FileProcessorTests, GeneratesExpectedOutputsForStandardMode) {
     writeTestWav(wav_path, sample_rate, duration_seconds);
 
     FileProcessor processor;
-    processor.setMode(PerformanceMode::Standard);
+    processor.setMode(PerformanceMode::Mode_Standard);
 
     ASSERT_TRUE(processor.processFile(wav_path.string(), csv_path.string()));
     const auto& results = processor.getResults();
@@ -116,7 +116,7 @@ TEST(FileProcessorTests, GeneratesExpectedOutputsForStandardMode) {
 
 TEST(FileProcessorTests, FailsGracefullyWhenFileMissing) {
     FileProcessor processor;
-    processor.setMode(PerformanceMode::Light);
+    processor.setMode(PerformanceMode::Mode_Light);
     EXPECT_FALSE(processor.processFile("/nonexistent/input.wav", "/tmp/output.csv"));
 }
 

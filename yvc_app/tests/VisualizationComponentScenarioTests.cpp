@@ -331,5 +331,10 @@ static SpectrumAnalyzerScenarioTest spectrumAnalyzerScenarioTest;
 int main() {
     juce::UnitTestRunner runner;
     runner.runAllTests();
-    return runner.getNumFailures() == 0 ? 0 : 1;
+    int totalFailures = 0;
+    for (int i = 0; i < runner.getNumResults(); ++i) {
+        if (auto* r = runner.getResult(i))
+            totalFailures += r->failures;
+    }
+    return totalFailures == 0 ? 0 : 1;
 }
