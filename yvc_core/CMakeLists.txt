@@ -81,7 +81,7 @@ target_link_libraries(yvc_core
 # Platform-specific audio backends
 if(APPLE)
     target_compile_definitions(yvc_core PUBLIC YVC_CORE_HAVE_COREAUDIO=1)
-    target_link_libraries(yvc_core PRIVATE "-framework AudioToolbox" "-framework AudioUnit" "-framework CoreAudio")
+    target_link_libraries(yvc_core PRIVATE "-framework AudioToolbox" "-framework AudioUnit" "-framework CoreAudio" "-framework CoreFoundation")
 elseif(UNIX AND NOT APPLE)
     find_package(ALSA)
     if(ALSA_FOUND)
