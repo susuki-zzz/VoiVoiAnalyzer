@@ -77,6 +77,13 @@ if(BUILD_TESTING)
     endif()
 
     enable_testing()
+
+    if(NOT TARGET check)
+        add_custom_target(check
+            COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+            WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+    endif()
 endif()
 
 # Helper function for adding tests with GTest

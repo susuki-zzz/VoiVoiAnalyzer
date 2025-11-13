@@ -138,7 +138,7 @@ TEST_F(HNRAnalyzerTests, IncreasingNoiseDecreasesHNR) {
 
 TEST_F(HNRAnalyzerTests, ComplexHarmonicSignalHasGoodHNR) {
     HNRAnalyzer analyzer(config_);
-    
+
     const float f0 = 150.0f;
     std::vector<Sample> harmonic(4096, 0.0f);
     
@@ -150,11 +150,25 @@ TEST_F(HNRAnalyzerTests, ComplexHarmonicSignalHasGoodHNR) {
     for (size_t i = 0; i < harmonic.size(); ++i) {
         harmonic[i] = fundamental[i] + harmonic2[i] + harmonic3[i];
     }
-    
+
     float hnr = analyzer.analyze(harmonic.data(), harmonic.size(), f0);
-    
+
     // Complex harmonic signal should still have good HNR
     EXPECT_GT(hnr, 10.0f);
+}
+
+TEST_F(HNRAnalyzerTests, ShortBuffersDegradeReliability) {
+    HNRAnalyzer analyzer(config_);
+
+    const float f0 = 220.0f;
+    auto longBuffer = generateSineWave(f0, 4096, config_.sample_rate);
+    auto shortBuffer = generateSineWave(f0, 256, config_.sample_rate);
+
+    float hnrLong = analyzer.analyze(longBuffer.data(), longBuffer.size(), f0);
+    float hnrShort = analyzer.analyze(shortBuffer.data(), shortBuffer.size(), f0);
+
+    EXPECT_GT(hnrLong, hnrShort);
+    EXPECT_GT(hnrLong, 5.0f);
 }
 
 } // namespace yvc::test

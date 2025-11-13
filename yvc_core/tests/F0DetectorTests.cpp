@@ -117,13 +117,40 @@ TEST_F(F0DetectorTests, HandlesSmallBuffers) {
 
 TEST_F(F0DetectorTests, CustomF0RangeIsRespected) {
     F0Detector detector(config_);
-    
+
     const float min_f0 = 150.0f;
     const float max_f0 = 250.0f;
     detector.setF0Range(min_f0, max_f0);
-    
+
     EXPECT_FLOAT_EQ(detector.getMinF0(), min_f0);
     EXPECT_FLOAT_EQ(detector.getMaxF0(), max_f0);
+}
+
+TEST_F(F0DetectorTests, NarrowRangeEnablesDeterministicDetection) {
+    F0Detector detector(config_);
+    const float target_freq = 440.0f;
+    detector.setF0Range(420.0f, 460.0f);
+
+    auto samples = generateSineWave(target_freq, 4096, config_.sample_rate);
+
+    bool valid = false;
+    const float detected = detector.detect(samples.data(), samples.size(), valid);
+
+    ASSERT_TRUE(valid);
+    EXPECT_NEAR(detected, target_freq, 3.0f);
+}
+
+TEST_F(F0DetectorTests, InsufficientSamplesReturnZero) {
+    F0Detector detector(config_);
+    detector.setF0Range(100.0f, 300.0f);
+
+    auto samples = generateSineWave(180.0f, 256, config_.sample_rate);
+
+    bool valid = true;
+    const float detected = detector.detect(samples.data(), samples.size(), valid);
+
+    EXPECT_FALSE(valid);
+    EXPECT_FLOAT_EQ(detected, 0.0f);
 }
 
 } // namespace yvc::test

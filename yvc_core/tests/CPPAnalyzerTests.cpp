@@ -92,5 +92,29 @@ TEST(CPPAnalyzerTests, CepstralPeakMatchesAnalyticalReference) {
     EXPECT_TRUE(approximatelyEqual(static_cast<double>(cpp), expected_cpp, 1e-3));
 }
 
+TEST(CPPAnalyzerTests, AmplitudeNormalizationProvidesStableCPP) {
+    AudioConfig config{};
+    config.sample_rate = 16000;
+    config.fft_size = 512;
+
+    CPPAnalyzer analyzer(config);
+
+    std::vector<Sample> reference(config.fft_size, 0.0f);
+    std::vector<Sample> attenuated(config.fft_size, 0.0f);
+
+    const float frequency = 220.0f;
+    for (size_t n = 0; n < reference.size(); ++n) {
+        const float sample = std::sin(2.0f * std::numbers::pi_v<float> * frequency *
+                                      static_cast<float>(n) / static_cast<float>(config.sample_rate));
+        reference[n] = sample;
+        attenuated[n] = sample * 0.2f;
+    }
+
+    const float cppReference = analyzer.analyze(reference.data(), reference.size());
+    const float cppAttenuated = analyzer.analyze(attenuated.data(), attenuated.size());
+
+    EXPECT_NEAR(cppReference, cppAttenuated, 0.5f);
+}
+
 } // namespace
 } // namespace yvc::test

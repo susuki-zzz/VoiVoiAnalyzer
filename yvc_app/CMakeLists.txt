@@ -183,6 +183,34 @@ if(JUCE_FOUND)
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
                 ${CMAKE_SOURCE_DIR}/yvc_core/include
         )
+
+        add_executable(yvc_app_gui_tests
+            tests/VisualizationComponentScenarioTests.cpp
+        )
+
+        target_sources(yvc_app_gui_tests PRIVATE
+            src/VisualizationComponents.cpp
+            src/LocalizationManager.cpp
+            src/MetricsComponents.cpp
+        )
+
+        target_link_libraries(yvc_app_gui_tests
+            PRIVATE
+                juce::juce_core
+                juce::juce_data_structures
+                juce::juce_events
+                juce::juce_graphics
+                juce::juce_gui_basics
+                yvc_core
+        )
+
+        target_include_directories(yvc_app_gui_tests
+            PRIVATE
+                ${CMAKE_CURRENT_SOURCE_DIR}/include
+                ${CMAKE_SOURCE_DIR}/yvc_core/include
+        )
+
+        add_test(NAME yvc_app_gui_scenarios COMMAND yvc_app_gui_tests)
     endif()
 
 else()
