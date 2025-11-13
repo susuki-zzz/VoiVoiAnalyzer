@@ -11,6 +11,12 @@
 
 namespace yvc::app {
 
+namespace test {
+class AdvancedHeatmapComponentTestPeer;
+class ComparativeMetricsComponentTestPeer;
+class SpectrumAnalyzerComponentTestPeer;
+} // namespace test
+
 /**
  * @brief Advanced heatmap with zoom, scrubbing, and export capabilities
  * 
@@ -90,10 +96,12 @@ private:
     void drawValueAxis(juce::Graphics& g, juce::Rectangle<int> area);
     void drawPlayhead(juce::Graphics& g, juce::Rectangle<int> area);
     void drawZoomOverlay(juce::Graphics& g);
-    
+
     juce::Colour getValueColour(float value) const;
     double timestampToX(double timestamp, juce::Rectangle<int> area) const;
     double xToTimestamp(int x, juce::Rectangle<int> area) const;
+
+    friend class test::AdvancedHeatmapComponentTestPeer;
 };
 
 /**
@@ -140,6 +148,8 @@ private:
     float getMetricValue(const yvc::AnalysisResults& result, const juce::String& metric);
     juce::String getMetricUnit(const juce::String& metric);
     std::pair<float, float> getMetricRange(const juce::String& metric);
+
+    friend class test::ComparativeMetricsComponentTestPeer;
 };
 
 /**
@@ -196,6 +206,8 @@ private:
     float frequencyToX(float freq, juce::Rectangle<int> area) const;
     float magnitudeToY(float mag, juce::Rectangle<int> area) const;
     int frequencyToBin(float freq) const;
+
+    friend class test::SpectrumAnalyzerComponentTestPeer;
 };
 
 /**
