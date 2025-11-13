@@ -15,6 +15,14 @@
 #define YVC_CORE_HAVE_ALSA 0
 #endif
 
+#ifndef YVC_CORE_HAVE_WASAPI
+#ifdef _WIN32
+#define YVC_CORE_HAVE_WASAPI 1
+#else
+#define YVC_CORE_HAVE_WASAPI 0
+#endif
+#endif
+
 namespace yvc::audio {
 
 struct AudioDeviceInfo {
@@ -63,9 +71,11 @@ public:
 
 std::unique_ptr<IAudioBackend> createCoreAudioBackend();
 std::unique_ptr<IAudioBackend> createAlsaBackend();
+std::unique_ptr<IAudioBackend> createWasapiBackend();
 std::unique_ptr<IAudioBackend> createPlatformBackend();
 
 bool hasCoreAudioBackend();
 bool hasAlsaBackend();
+bool hasWasapiBackend();
 
 }  // namespace yvc::audio

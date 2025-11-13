@@ -309,6 +309,13 @@ cmake --build build/gui --target yvc_app --config Release
 
 ## ロードマップ
 
+### 🎯 最近の改善 (2024-12)
+- [x] **ロックフリーリングバッファ実装** - O(1)操作、完全スレッドセーフ
+- [x] **WASAPI バックエンド追加** - Windows優先対応、48kHz自動ネゴシエーション
+- [x] **F0Detector 強化** - YIN アルゴリズム + ヒステリシス + 5点メディアン + セミトーンジャンプガード
+
+詳細: [IMPLEMENTATION_IMPROVEMENTS.md](IMPLEMENTATION_IMPROVEMENTS.md) | 全タスク: [TODO.md](TODO.md)
+
 ### JUCE GUI の完成度向上
 - [ ] ダッシュボードビュー（F0 ゲージ、ヒートマップ、ステータスバー）のレイアウトを確定
 - [ ] MetricsBus の更新を JUCE コンポーネントへダブルバッファで受け渡す
@@ -320,7 +327,15 @@ cmake --build build/gui --target yvc_app --config Release
 - [x] 30 秒チャンク＋ 1 秒オーバーラップのバッチ処理パイプライン
 - [x] メトリクス CSV とセッションサマリー JSON のシリアライズ
 - [x] リアルタイムアナライザーと揃えたヒートマップ／異常レポート生成
-- [ ] WASAPI以外のオーディオバックエンド
+- [ ] RF64 対応（>4GB ファイル）
+- [ ] 拡張 fmt chunk 処理
+- [ ] エラー復旧機能
+
+### テスト & 品質保証
+- [ ] 1時間連続実行テスト（XRuns=0, p95レイテンシ≤60ms, CPU<12%, RAM≤1.0GB）
+- [ ] 解析アルゴリズム境界値テスト（合成信号: 正弦波、ノイズ、/s/擬似）
+- [ ] Windows CI パイプライン（GitHub Actions）
+- [ ] パフォーマンスベンチマーク自動化
 
 ### 高度な可視化オプション
 - [ ] ヒートマップ操作（ズーム、時間範囲スクラブ、解像度切り替え）の拡張
@@ -352,20 +367,12 @@ cmake --build build/gui --target yvc_app --config Release
 
 ### macOS / Linux 対応
 - [x] CoreAudio / ALSA をサポートするようオーディオバックエンドを抽象化
+- [x] WASAPI バックエンド追加（Windows優先）
 - [ ] プラットフォーム別ビルドプリセットと CI スモークビルドを統合
 - [ ] 代表的なハードウェアで性能目標を検証
 
 | プラットフォーム | バックエンド | 状態 | 備考 |
 |------------------|--------------|------|------|
+| Windows 10/11 | WASAPI | ✅ | 48kHz優先、共有モード、イベント駆動 |
 | macOS 14.4 | CoreAudio | ✅ | AudioQueue コールバックによる既定入力のスモークテストを確認済み |
 | Ubuntu 22.04 | ALSA | ✅ | 既定 PCM デバイスの float32 キャプチャループを自動テストハーネスで確認 |
-
-## サポート
-
-不具合や質問はこちらへ:
-- GitHub Issues: https://github.com/susuki-zzz/VoiVoiAnalyzer/issues
-- プライバシーに関する問い合わせ: [Privacy Policy](docs/PRIVACY.md)
-
----
-
-**注意**: 本ソフトウェアはボイストレーニング用途です。声帯の健康に関する専門的な助言が必要な場合は、言語聴覚士やボイストレーナーなどの専門家に相談してください。

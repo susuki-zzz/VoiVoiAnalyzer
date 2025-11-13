@@ -49,6 +49,7 @@ set(YVC_CORE_HEADERS
     include/yvc_core/ApiKeyVault.h
     include/yvc_core/Logger.h
     include/yvc_core/AudioBackend.h
+    include/yvc_core/LockFreeRingBuffer.h
 )
 
 # Create library
@@ -96,6 +97,8 @@ endif()
 if(WIN32)
     target_compile_definitions(yvc_core PRIVATE _CRT_SECURE_NO_WARNINGS)
     target_link_libraries(yvc_core PRIVATE Crypt32)
+    list(APPEND YVC_CORE_SOURCES src/audio/WasapiAudioBackend.cpp)
+    target_compile_definitions(yvc_core PUBLIC YVC_CORE_HAVE_WASAPI=1)
     # Ensure consistent runtime library
     set_target_properties(yvc_core PROPERTIES
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
@@ -146,6 +149,7 @@ if(BUILD_TESTING)
         tests/MetricsOnlyCoachProviderTests.cpp
         tests/LoggerTests.cpp
         tests/TestSignalHelpersDemoTests.cpp
+        tests/LockFreeRingBufferTests.cpp
         tests/TestSignalHelpers.h
     )
 
