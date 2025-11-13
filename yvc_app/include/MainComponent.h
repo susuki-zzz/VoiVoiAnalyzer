@@ -14,6 +14,7 @@
 #include "LocalizationManager.h"
 #include "VisualizationComponents.h"
 #include "SettingsDialog.h"
+#include "JuceAudioBridge.h"
 #include "yvc_core/MetricsBus.h"
 
 namespace yvc::app {
@@ -45,10 +46,14 @@ private:
     void updateVisualizationLayout();
     void evaluateFrameBudget();
     void configureTimerForCurrentBudget();
-    void applyAudioSettings(); // 追加: デバイス/レート/バッファ適用
+    void applyAudioSettings();
+    void startAudioProcessing();
+    void stopAudioProcessing();
 
     yvc::MetricsBus& metricsBus_;
     juce::AudioDeviceManager& audioDeviceManager_;
+    std::unique_ptr<JuceAudioBridge> audioBridge_;
+    
     yvc::AnalysisResults currentMetrics_;
     MetricsDisplayComponent metricsDisplay_;
     HeatmapComponent heatmapDisplay_;

@@ -132,6 +132,13 @@ SettingsDialog::~SettingsDialog() {
     performanceModeBox_.removeListener(this);
     languageBox_.removeListener(this);
     heatmapResolutionBox_.removeListener(this);
+
+    // Fallback: if the window was closed via title bar/ESC without pressing OK/Cancel,
+    // ensure the callback is still fired with accepted = false to keep app logic consistent.
+    if (!hasClosed_ && onClose_) {
+        hasClosed_ = true;
+        onClose_(false, workingCopy_);
+    }
 }
 
 void SettingsDialog::createTabbedInterface() {

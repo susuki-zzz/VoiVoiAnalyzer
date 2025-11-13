@@ -99,6 +99,7 @@ if(JUCE_FOUND)
         PRIVATE
             src/Main.cpp
             src/MainComponent.cpp
+            src/JuceAudioBridge.cpp
             src/MetricsComponents.cpp
             src/PresetManager.cpp
             src/SettingsDialog.cpp
@@ -166,17 +167,24 @@ if(JUCE_FOUND)
     if(BUILD_TESTING)
         yvc_add_gtest(yvc_app_tests
             tests/PresetManagerTests.cpp
+            tests/SettingsDialogTests.cpp
+            tests/JuceAudioBridgeTests.cpp
         )
 
         # Compile implementation sources needed by tests
         target_sources(yvc_app_tests PRIVATE
             src/PresetManager.cpp
+            src/JuceAudioBridge.cpp
+            src/LocalizationManager.cpp
+            src/SettingsDialog.cpp
+            src/SettingsComponent.cpp
         )
 
         target_link_libraries(yvc_app_tests
             PRIVATE
                 juce::juce_core
                 juce::juce_gui_basics
+                juce::juce_audio_devices
                 yvc_core
         )
 

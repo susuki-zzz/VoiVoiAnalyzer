@@ -33,6 +33,34 @@ public:
 
     static void showDialog(const AppSettings& currentSettings, juce::Component* parent, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose);
 
+    // Test helpers: allow constructing and interacting with the dialog in unit tests
+    static std::unique_ptr<SettingsDialog> createForTest(const AppSettings& currentSettings, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose) {
+        return std::unique_ptr<SettingsDialog>(new SettingsDialog(currentSettings, audioDeviceManager, std::move(onClose)));
+    }
+
+    // Lightweight getters/setters for tests (no production code depends on these)
+    int getSelectedSampleRateId() const { return sampleRateBox_.getSelectedId(); }
+    int getSelectedBufferSizeId() const { return bufferSizeBox_.getSelectedId(); }
+    int getHeatmapResolutionId() const { return heatmapResolutionBox_.getSelectedId(); }
+    LocalizationManager::Language getSelectedLanguage() const { return static_cast<LocalizationManager::Language>(juce::jmax(1, languageBox_.getSelectedId()) - 1); }
+    bool isAutoSaveEnabled() const { return autoSaveToggle_.getToggleState(); }
+    bool isPreprocessingEnabled() const { return preprocToggle_.getToggleState(); }
+    bool isAdvancedVisualizationEnabled() const { return advancedVisualizationToggle_.getToggleState(); }
+    bool isSpectralAnalysisEnabled() const { return spectralAnalysisToggle_.getToggleState(); }
+    double getMaxRecordingTimeForTest() const { return maxRecordingSlider_.getValue(); }
+
+    void setSelectedSampleRateForTest(int sr) { sampleRateBox_.setSelectedId(sr, juce::sendNotification); }
+    void setSelectedBufferSizeForTest(int bs) { bufferSizeBox_.setSelectedId(bs, juce::sendNotification); }
+    void setHeatmapResolutionForTest(int id) { heatmapResolutionBox_.setSelectedId(id, juce::sendNotification); }
+    void setLanguageForTest(LocalizationManager::Language lang) { languageBox_.setSelectedId(static_cast<int>(lang) + 1, juce::sendNotification); }
+    void setAutoSaveForTest(bool enabled) { autoSaveToggle_.setToggleState(enabled, juce::sendNotification); }
+    void setPreprocessingForTest(bool enabled) { preprocToggle_.setToggleState(enabled, juce::sendNotification); }
+    void setAdvancedVisualizationForTest(bool enabled) { advancedVisualizationToggle_.setToggleState(enabled, juce::sendNotification); }
+    void setSpectralAnalysisForTest(bool enabled) { spectralAnalysisToggle_.setToggleState(enabled, juce::sendNotification); }
+    void setMaxRecordingTimeForTest(double seconds) { maxRecordingSlider_.setValue(seconds, juce::sendNotification); }
+    void simulateOkForTest() { close(true); }
+    void simulateCancelForTest() { close(false); }
+
     void resized() override;
     void paint(juce::Graphics& g) override;
     ~SettingsDialog() override;

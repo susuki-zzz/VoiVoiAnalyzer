@@ -6,6 +6,7 @@
 #include "SettingsDialog.h"
 
 #include <juce_core/juce_core.h>
+#include <yvc_core/Logger.h>
 
 namespace yvc::app {
 
@@ -26,11 +27,23 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     auto& locManager = LocalizationManager::getInstance();
     locManager.loadLanguagePreference();
 
-    // 現在のデバイス名を settings_ 初期値に反映
+    // Get current device setup
     juce::AudioDeviceManager::AudioDeviceSetup setup;
     audioDeviceManager_.getAudioDeviceSetup(setup);
     settings_.inputDeviceName = setup.inputDeviceName;
+    settings_.sampleRate = static_cast<int>(setup.sampleRate > 0 ? setup.sampleRate : 48000);
+    settings_.bufferSize = setup.bufferSize > 0 ? setup.bufferSize : 512;
 
+    // Create audio bridge with initial config
+    yvc::AudioConfig audioConfig;
+    audioConfig.sample_rate = static_cast<yvc::SampleRate>(settings_.sampleRate);
+    audioConfig.buffer_size = static_cast<uint32_t>(settings_.bufferSize);
+    audioConfig.num_channels = 1;
+    audioConfig.mode = yvc::PerformanceMode::Mode_Standard;
+    
+    audioBridge_ = std::make_unique<JuceAudioBridge>(metricsBus_, audioConfig);
+
+    // UI setup
     auto& presets = presetManager_.getPresets();
     int presetId = 1;
     for (const auto& preset : presets) {
@@ -79,7 +92,6 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
         addAndMakeVisible(advancedF0Heatmap_.get());
         addAndMakeVisible(advancedLevelHeatmap_.get());
         
-        // Configure heatmaps
         AdvancedHeatmapComponent::HeatmapConfig f0Config;
         f0Config.minValue = 60.0f;
         f0Config.maxValue = 400.0f;
@@ -97,7 +109,6 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
         advancedLevelHeatmap_->setConfig(levelConfig);
     }
     
-    // Add spectral analysis if enabled
     if (settings_.showSpectralAnalysis) {
         spectrumAnalyzer_ = std::make_unique<SpectrumAnalyzerComponent>();
         addAndMakeVisible(spectrumAnalyzer_.get());
@@ -111,10 +122,14 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
 
     configureTimerForCurrentBudget();
+    
+    // Start audio processing
+    startAudioProcessing();
 }
 
 MainComponent::~MainComponent() {
     stopTimer();
+    stopAudioProcessing();
     settingsButton_.removeListener(this);
     presetSelector_.removeListener(this);
 }
@@ -211,18 +226,13 @@ void MainComponent::buttonClicked(juce::Button* button) {
                 auto oldLanguage = settings_.language;
                 settings_ = updated;
                 
-                // Apply language change
                 if (oldLanguage != settings_.language) {
                     LocalizationManager::getInstance().setLanguage(settings_.language);
                     updateUILanguage();
                 }
 
-                // オーディオ設定を反映
                 applyAudioSettings();
-                
                 recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
-                
-                // Update visualization components based on new settings
                 updateVisualizationLayout();
             }
         });
@@ -368,21 +378,49 @@ void MainComponent::configureTimerForCurrentBudget() {
 }
 
 void MainComponent::applyAudioSettings() {
+    // Stop audio processing
+    stopAudioProcessing();
+
     juce::AudioDeviceManager::AudioDeviceSetup setup;
     audioDeviceManager_.getAudioDeviceSetup(setup);
 
-    // 入力デバイス名
     if (settings_.inputDeviceName.isNotEmpty())
         setup.inputDeviceName = settings_.inputDeviceName;
-
-    // サンプルレート / バッファ
     if (settings_.sampleRate > 0)
         setup.sampleRate = static_cast<double>(settings_.sampleRate);
     if (settings_.bufferSize > 0)
         setup.bufferSize = settings_.bufferSize;
 
-    // デバイス適用（WASAPI想定）
-    audioDeviceManager_.setAudioDeviceSetup(setup, true);
+    juce::String error = audioDeviceManager_.setAudioDeviceSetup(setup, true);
+    if (error.isNotEmpty()) {
+        LOG_WARNF("Audio device setup warning: %s", error.toRawUTF8());
+    }
+
+    // Update bridge config
+    yvc::AudioConfig audioConfig;
+    audioConfig.sample_rate = static_cast<yvc::SampleRate>(settings_.sampleRate);
+    audioConfig.buffer_size = static_cast<uint32_t>(settings_.bufferSize);
+    audioConfig.num_channels = 1;
+    audioConfig.mode = yvc::PerformanceMode::Mode_Standard;
+    
+    audioBridge_->updateConfig(audioConfig);
+
+    // Restart audio processing
+    startAudioProcessing();
+}
+
+void MainComponent::startAudioProcessing() {
+    if (audioBridge_) {
+        audioDeviceManager_.addAudioCallback(audioBridge_.get());
+        LOG_INFO("Audio processing started");
+    }
+}
+
+void MainComponent::stopAudioProcessing() {
+    if (audioBridge_) {
+        audioDeviceManager_.removeAudioCallback(audioBridge_.get());
+        LOG_INFO("Audio processing stopped");
+    }
 }
 
 } // namespace yvc::app
