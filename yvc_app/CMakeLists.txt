@@ -3,13 +3,36 @@
 
 project(yvc_app VERSION 0.1.0 LANGUAGES CXX)
 
-# Try to locate JUCE locally first (e.g. as a submodule in third_party/JUCE)
+# Allow callers to pass a custom JUCE source tree location.
+set(YVC_JUCE_PATH "" CACHE PATH "Override path to the JUCE source tree")
+
+# Try to locate JUCE from a list of well-known locations. The paths are evaluated in
+# priority order: cache override, environment variable, repository submodule.
 set(JUCE_FOUND FALSE)
-set(_JUCE_LOCAL_PATH "${CMAKE_SOURCE_DIR}/third_party/JUCE")
-if(EXISTS "${_JUCE_LOCAL_PATH}/modules/juce_core/juce_core.h")
-    message(STATUS "Found JUCE submodule at: ${_JUCE_LOCAL_PATH}")
-    add_subdirectory(${_JUCE_LOCAL_PATH} ${_JUCE_LOCAL_PATH}/build)
-    set(JUCE_FOUND TRUE)
+set(_YVC_JUCE_SEARCH_PATHS)
+if(YVC_JUCE_PATH)
+    list(APPEND _YVC_JUCE_SEARCH_PATHS "${YVC_JUCE_PATH}")
+endif()
+if(DEFINED ENV{JUCE_DIR})
+    list(APPEND _YVC_JUCE_SEARCH_PATHS "$ENV{JUCE_DIR}")
+endif()
+list(APPEND _YVC_JUCE_SEARCH_PATHS "${CMAKE_SOURCE_DIR}/third_party/JUCE")
+list(REMOVE_DUPLICATES _YVC_JUCE_SEARCH_PATHS)
+
+foreach(_YVC_JUCE_PATH IN LISTS _YVC_JUCE_SEARCH_PATHS)
+    if(NOT JUCE_FOUND AND EXISTS "${_YVC_JUCE_PATH}/modules/juce_core/juce_core.h")
+        message(STATUS "Found JUCE source tree at: ${_YVC_JUCE_PATH}")
+        add_subdirectory(${_YVC_JUCE_PATH} ${CMAKE_BINARY_DIR}/juce-build)
+        set(JUCE_FOUND TRUE)
+    endif()
+endforeach()
+
+# Fall back to a JUCE package installation if available.
+if(NOT JUCE_FOUND)
+    find_package(JUCE CONFIG QUIET)
+    if(JUCE_FOUND)
+        message(STATUS "Found JUCE via find_package()")
+    endif()
 endif()
 
 # If not found locally, fetch it if allowed.
@@ -164,7 +187,7 @@ if(JUCE_FOUND)
 
 else()
     message(WARNING "JUCE not available - creating stub application")
-    message(STATUS "Enable YVC_FETCH_JUCE=ON or add JUCE under third_party/JUCE to build full GUI.")
+    message(STATUS "Provide JUCE via third_party/JUCE, -DYVC_JUCE_PATH=..., JUCE_DIR, or enable YVC_FETCH_JUCE=ON to build the full GUI.")
     add_executable(yvc_app src/MainStub.cpp)
     target_compile_features(yvc_app PRIVATE cxx_std_20)
     target_link_libraries(yvc_app PRIVATE yvc_core)
