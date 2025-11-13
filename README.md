@@ -319,9 +319,14 @@ Contributions are welcome! Please ensure:
 - [ ] Add runtime language switcher with persistence
 
 ### macOS and Linux support
-- [ ] Abstract audio backend to support CoreAudio/ALSA with feature parity
+- [x] Abstract audio backend to support CoreAudio/ALSA with feature parity
 - [ ] Integrate platform build presets + CI smoke builds
 - [ ] Validate performance targets on representative hardware
+
+| Platform | Backend | Status | Notes |
+|----------|---------|--------|-------|
+| macOS 14.4 | CoreAudio | ✅ | Verified default input capture via AudioQueue callback smoke test. |
+| Ubuntu 22.04 | ALSA | ✅ | Verified float32 capture loop using default PCM device with automated unit test harness. |
 
 ## Support
 
