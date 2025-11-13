@@ -113,6 +113,11 @@ if(BUILD_TESTING)
         tests/AnalyzerEngineTests.cpp
         tests/AudioBufferTests.cpp
         tests/CPPAnalyzerTests.cpp
+        tests/F0DetectorTests.cpp
+        tests/LevelAnalyzerTests.cpp
+        tests/HNRAnalyzerTests.cpp
+        tests/SpectralAnalyzerTests.cpp
+        tests/VADAnalyzerTests.cpp
         tests/MetricsBusTests.cpp
         tests/PerformanceModeTests.cpp
         tests/PreprocessChainTests.cpp
@@ -121,6 +126,7 @@ if(BUILD_TESTING)
         tests/ApiKeyVaultTests.cpp
         tests/MetricsOnlyCoachProviderTests.cpp
         tests/LoggerTests.cpp
+        tests/TestSignalHelpersDemoTests.cpp
         tests/TestSignalHelpers.h
     )
 
