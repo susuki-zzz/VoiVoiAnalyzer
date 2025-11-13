@@ -21,6 +21,9 @@ set(YVC_CORE_SOURCES
     src/MetricsOnlyCoachProvider.cpp
     src/ApiKeyVault.cpp
     src/Logger.cpp
+    src/audio/AudioBackendFactory.cpp
+    src/audio/CoreAudioBackend.cpp
+    src/audio/AlsaAudioBackend.cpp
 )
 
 # Core library headers
@@ -45,6 +48,7 @@ set(YVC_CORE_HEADERS
     include/yvc_core/MetricsOnlyCoachProvider.h
     include/yvc_core/ApiKeyVault.h
     include/yvc_core/Logger.h
+    include/yvc_core/AudioBackend.h
 )
 
 # Create library
@@ -73,6 +77,20 @@ target_link_libraries(yvc_core
     PUBLIC
         Threads::Threads
 )
+
+# Platform-specific audio backends
+if(APPLE)
+    target_compile_definitions(yvc_core PUBLIC YVC_CORE_HAVE_COREAUDIO=1)
+    target_link_libraries(yvc_core PRIVATE "-framework AudioToolbox" "-framework AudioUnit" "-framework CoreAudio")
+elseif(UNIX AND NOT APPLE)
+    find_package(ALSA)
+    if(ALSA_FOUND)
+        target_compile_definitions(yvc_core PUBLIC YVC_CORE_HAVE_ALSA=1)
+        target_link_libraries(yvc_core PRIVATE ALSA::ALSA)
+    else()
+        message(WARNING "ALSA development files not found; ALSA backend will be disabled.")
+    endif()
+endif()
 
 # Windows-specific settings
 if(WIN32)
@@ -112,6 +130,7 @@ if(BUILD_TESTING)
     yvc_add_gtest(yvc_core_tests
         tests/AnalyzerEngineTests.cpp
         tests/AudioBufferTests.cpp
+        tests/AudioBackendTests.cpp
         tests/CPPAnalyzerTests.cpp
         tests/F0DetectorTests.cpp
         tests/LevelAnalyzerTests.cpp
