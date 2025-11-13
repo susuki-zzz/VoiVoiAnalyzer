@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: 4
+      CTEST_OUTPUT_ON_FAILURE: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            pkg-config \
+            libasound2-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libglu1-mesa-dev \
+            libfreetype6-dev
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install ninja
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install ninja --no-progress
+
+      - name: Configure CMake (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cmake -S . -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DBUILD_YVC_APP=ON \
+            -DBUILD_YVC_OFFLINE=ON \
+            -DYVC_FETCH_JUCE=ON
+
+      - name: Build (Unix)
+        if: matrix.os != 'windows-latest'
+        run: cmake --build build
+
+      - name: Test (Unix)
+        if: matrix.os != 'windows-latest'
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Configure CMake (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake -S . -B build \
+            -G "Visual Studio 17 2022" \
+            -A x64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTING=ON \
+            -DBUILD_YVC_APP=ON \
+            -DBUILD_YVC_OFFLINE=ON \
+            -DYVC_FETCH_JUCE=ON
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: cmake --build build --config Release
+
+      - name: Test (Windows)
+        if: matrix.os == 'windows-latest'
+        run: ctest --test-dir build --output-on-failure -C Release
