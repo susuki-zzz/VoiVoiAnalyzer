@@ -8,6 +8,7 @@
 #include <juce_audio_devices/juce_audio_devices.h>
 
 #include <array>
+#include <memory>
 
 #include "MetricsComponents.h"
 #include "PresetManager.h"
@@ -15,6 +16,8 @@
 #include "VisualizationComponents.h"
 #include "SettingsDialog.h"
 #include "JuceAudioBridge.h"
+#include "WaveformComponent.h"
+#include "ScrollingWaveformComponent.h"
 #include "yvc_core/MetricsBus.h"
 
 namespace yvc::app {
@@ -57,6 +60,9 @@ private:
     yvc::AnalysisResults currentMetrics_;
     MetricsDisplayComponent metricsDisplay_;
     HeatmapComponent heatmapDisplay_;
+    std::unique_ptr<WaveformComponent> waveformDisplay_;
+    std::unique_ptr<ScrollingWaveformComponent> scrollingWaveform_;
+
     PresetManager presetManager_;
     AppSettings settings_;
 

@@ -25,6 +25,7 @@ set(YVC_CORE_SOURCES
     src/audio/CoreAudioBackend.cpp
     src/audio/AlsaAudioBackend.cpp
     src/audio/WasapiAudioBackend.cpp
+    src/FormantAnalyzer.cpp
 )
 
 # Core library headers
@@ -51,6 +52,7 @@ set(YVC_CORE_HEADERS
     include/yvc_core/Logger.h
     include/yvc_core/AudioBackend.h
     include/yvc_core/LockFreeRingBuffer.h
+    include/yvc_core/FormantAnalyzer.h
 )
 
 # Create library

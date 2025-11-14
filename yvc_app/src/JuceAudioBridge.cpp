@@ -11,6 +11,8 @@ JuceAudioBridge::JuceAudioBridge(yvc::MetricsBus& metricsBus, const yvc::AudioCo
     : metricsBus_(metricsBus) {
     engine_ = std::make_unique<yvc::AnalyzerEngine>(config, metricsBus_);
     monoBuffer_.reserve(config.buffer_size * 4); // Pre-allocate with headroom
+    recentCapacity_ = static_cast<size_t>(config.sample_rate); // 1 second of audio
+    recentSamples_.assign(recentCapacity_, 0.0f);
     LOG_INFO("JuceAudioBridge created");
 }
 
@@ -72,6 +74,20 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
 
     // Feed to analyzer engine
     engine_->process(monoBuffer_.data(), static_cast<size_t>(numSamples), timestamp);
+
+    // Store into recent ring buffer
+    {
+        std::lock_guard<std::mutex> lk(recentMutex_);
+        if (recentCapacity_ == 0) {
+            recentCapacity_ = static_cast<size_t>(engine_->getConfig().sample_rate);
+            recentSamples_.assign(recentCapacity_, 0.0f);
+            recentWritePos_ = 0;
+        }
+        for (int i = 0; i < numSamples; ++i) {
+            recentSamples_[recentWritePos_] = monoBuffer_[static_cast<size_t>(i)];
+            recentWritePos_ = (recentWritePos_ + 1) % recentCapacity_;
+        }
+    }
 
     // Update statistics
     {
@@ -149,6 +165,21 @@ void JuceAudioBridge::resetStatistics() {
     stats_.totalCallbacks = 0;
     stats_.xruns = 0;
     stats_.averageLatencyMs = 0.0;
+}
+
+void JuceAudioBridge::getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const {
+    std::lock_guard<std::mutex> lk(recentMutex_);
+    if (recentCapacity_ == 0 || recentSamples_.empty()) {
+        out.clear();
+        return;
+    }
+    size_t n = std::min(maxSamples, recentCapacity_);
+    out.resize(n);
+    // Oldest first: start from writePos - n (mod capacity)
+    size_t start = (recentWritePos_ + recentCapacity_ - n) % recentCapacity_;
+    for (size_t i = 0; i < n; ++i) {
+        out[i] = recentSamples_[(start + i) % recentCapacity_];
+    }
 }
 
 } // namespace yvc::app

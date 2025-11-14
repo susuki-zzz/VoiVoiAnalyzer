@@ -107,6 +107,8 @@ if(JUCE_FOUND)
             src/AudioInputManager.cpp
             src/LocalizationManager.cpp
             src/VisualizationComponents.cpp
+            src/WaveformComponent.cpp
+            src/ScrollingWaveformComponent.cpp
     )
 
     # Add include directories

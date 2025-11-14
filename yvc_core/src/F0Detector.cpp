@@ -46,51 +46,62 @@ void F0Detector::setMaxSemitoneJump(float max_jump_st) {
 }
 
 float F0Detector::detect(const Sample* samples, size_t num_samples, bool& valid) {
+    float confidence = 0.0f;
+    float f0 = detect(samples, num_samples, valid, confidence);
+    return f0;
+}
+
+float F0Detector::detect(const Sample* samples, size_t num_samples, bool& valid, float& outConfidence) {
     valid = false;
-    
+    outConfidence = 0.0f;
+
     const size_t min_samples = 2 * (config_.sample_rate / static_cast<size_t>(min_f0_));
     if (num_samples < min_samples) {
         LOG_TRACE("F0Detector: Not enough samples for detection");
         return 0.0f;
     }
-    
+
     // Try YIN algorithm first
     float confidence = 0.0f;
     float f0 = computeYIN(samples, num_samples, confidence);
-    
+
     // Fallback to autocorrelation if YIN fails
     if (f0 <= 0.0f || f0 < min_f0_ || f0 > max_f0_) {
         f0 = computeAutocorrelation(samples, num_samples);
+        confidence = 0.0f; // no confidence from ACF path
     }
-    
+
     // Validate F0 is in expected range
     if (f0 < min_f0_ || f0 > max_f0_) {
         was_voiced_ = false;
         return 0.0f;
     }
-    
+
     // Apply hysteresis for voicing decision
     const float threshold = was_voiced_ ? unvoiced_threshold_ : voiced_threshold_;
     if (confidence < threshold) {
         was_voiced_ = false;
         return 0.0f;
     }
-    
+
     // Check semitone jump guard
     if (was_voiced_ && !isJumpAcceptable(f0)) {
         LOG_TRACEF("F0Detector: Jump rejected: %.2f -> %.2f Hz (%.1f ST)", 
                    last_f0_, f0, std::abs(hzToSemitones(f0) - hzToSemitones(last_f0_)));
-        return last_f0_;  // Return previous stable value
+        // keep previous, confidence degrade
+        outConfidence = std::min(confidence, 0.5f);
+        return last_f0_;
     }
-    
+
     // Apply median filter
     f0 = medianFilter(f0);
-    
+
     valid = true;
     was_voiced_ = true;
     last_f0_ = f0;
-    
-    LOG_TRACEF("F0Detector: Detected F0=%.2f Hz (confidence=%.3f)", f0, confidence);
+    outConfidence = std::clamp(confidence, 0.0f, 1.0f);
+
+    LOG_TRACEF("F0Detector: Detected F0=%.2f Hz (confidence=%.3f)", f0, outConfidence);
     return f0;
 }
 
@@ -103,7 +114,7 @@ float F0Detector::computeYIN(const Sample* samples, size_t num_samples, float& c
         num_samples / 2
     );
     
-    if (max_lag >= yin_buffer_.size()) {
+    if (max_lag > yin_buffer_.size()) { // was >= causing false early exit when sizes matched
         confidence = 0.0f;
         return 0.0f;
     }

@@ -32,6 +32,7 @@ struct AnalysisResults {
     // F0 (Fundamental Frequency) in Hz
     float f0 = 0.0f;
     bool f0_valid = false;
+    float f0_confidence = 0.0f; // 0..1 confidence from detector
     
     // Level metrics
     float rms = 0.0f;           // RMS level
@@ -55,7 +56,14 @@ struct AnalysisResults {
     bool voice_active = false;
     float speech_rate = 0.0f;   // syllables per second
     float pause_ratio = 0.0f;   // ratio of pauses to speech
-    
+
+    // Formants (basic 4-formant tracking now)
+    float f1 = 0.0f;
+    float f2 = 0.0f;
+    float f3 = 0.0f;
+    float f4 = 0.0f;
+    bool formants_valid = false;
+
     // Timestamp
     double timestamp = 0.0;
 };

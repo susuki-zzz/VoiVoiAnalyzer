@@ -11,6 +11,7 @@
 #include "PerformanceMode.h"
 #include "SpectralAnalyzer.h"
 #include "VADAnalyzer.h"
+#include "FormantAnalyzer.h"
 
 namespace yvc {
 
@@ -46,6 +47,7 @@ private:
     HNRAnalyzer hnr_analyzer_;
     SpectralAnalyzer spectral_analyzer_;
     VADAnalyzer vad_analyzer_;
+    FormantAnalyzer formant_analyzer_;
 
     PerformanceModeConfig performance_config_;
     uint32_t fft_size_;

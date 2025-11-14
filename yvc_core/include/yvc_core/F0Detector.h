@@ -22,6 +22,8 @@ public:
     // - Hysteresis for voicing decision
     // - Semitone jump guard (prevents sudden large changes)
     float detect(const Sample* samples, size_t num_samples, bool& valid);
+    // Overload that also outputs confidence in [0..1]
+    float detect(const Sample* samples, size_t num_samples, bool& valid, float& confidence);
     
     // Get the valid F0 range
     float getMinF0() const { return min_f0_; }

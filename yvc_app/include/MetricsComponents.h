@@ -9,6 +9,8 @@
 #include <memory>
 #include <vector>
 #include <deque>
+#include <algorithm>
+#include <cmath>
 
 #include "yvc_core/Types.h"
 
@@ -49,6 +51,12 @@ private:
     bool valid_ = false;
     float targetMin_ = 170.0f;
     float targetMax_ = 230.0f;
+    // Formants
+    float f1_ = 0.0f;
+    float f2_ = 0.0f;
+    float f3_ = 0.0f;
+    float f4_ = 0.0f;
+    bool formantsValid_ = false;
 };
 
 class ScalarMeterComponent : public MetricComponent {
@@ -106,6 +114,8 @@ private:
 
 class HeatmapComponent : public juce::Component {
 public:
+    enum class ScaleMode { LinearHz, LogHz, MidiNote };
+
     HeatmapComponent();
 
     void appendSample(const yvc::AnalysisResults& results);
@@ -113,14 +123,23 @@ public:
     void resized() override;
 
     void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
+    void setScaleMode(ScaleMode mode) { scaleMode_ = mode; repaint(); }
 
 private:
     void drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples,
                      float minValue, float maxValue, const juce::String& label, const juce::String& unit);
+    float mapFrequencyToY(float freq, float minFreq, float maxFreq, float height) const;
+    juce::String formatAxisLabel(float freq) const;
 
     std::deque<float> f0History_;
+    std::deque<float> f0ConfHistory_;
     std::deque<float> rmsHistory_;
+    std::deque<float> f1History_;
+    std::deque<float> f2History_;
+    std::deque<float> f3History_;
+    std::deque<float> f4History_;
     int maxSamples_ = 180;
+    ScaleMode scaleMode_ = ScaleMode::LinearHz;
 };
 
 } // namespace yvc::app

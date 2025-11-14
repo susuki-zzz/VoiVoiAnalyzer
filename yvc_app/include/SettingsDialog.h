@@ -22,6 +22,7 @@ struct AppSettings {
     bool enableAdvancedVisualization = true;
     bool showSpectralAnalysis = false;
     int heatmapResolution = 1; // 1=high, 2=medium, 3=low
+    int heatmapScaleMode = 1; // 1=Linear, 2=Log, 3=MIDI
     juce::String inputDeviceName; // 追加: 入力デバイス名
 };
 
@@ -115,6 +116,8 @@ private:
     juce::ToggleButton spectralAnalysisToggle_;
     juce::ComboBox heatmapResolutionBox_;
     juce::Label heatmapResolutionLabel_;
+    juce::ComboBox heatmapScaleModeBox_;
+    juce::Label heatmapScaleModeLabel_;
     
     // Privacy Settings Tab  
     juce::Component privacyTab_;

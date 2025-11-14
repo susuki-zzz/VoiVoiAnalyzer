@@ -46,6 +46,7 @@ SettingsDialog::SettingsDialog(const AppSettings& currentSettings, juce::AudioDe
     , maxRecordingLabel_("", TRANS("settings_max_duration") + ":")
     , languageLabel_("", TRANS("settings_language") + ":")
     , heatmapResolutionLabel_("", TRANS("heatmap_resolution") + ":")
+    , heatmapScaleModeLabel_("", TRANS("heatmap_scale_mode") + ":")
     , privacyInfoLabel_("", TRANS("privacy_local_processing")) {
     
     // Create tabs before any layout/resized() calls that rely on them.
@@ -88,6 +89,13 @@ SettingsDialog::SettingsDialog(const AppSettings& currentSettings, juce::AudioDe
     heatmapResolutionBox_.addItem(TRANS("resolution_low"), 3);
     heatmapResolutionBox_.setSelectedId(workingCopy_.heatmapResolution, juce::dontSendNotification);
     heatmapResolutionBox_.addListener(this);
+    
+    // Configure heatmap scale mode
+    heatmapScaleModeBox_.addItem("Linear Hz", 1);
+    heatmapScaleModeBox_.addItem("Log Hz", 2);
+    heatmapScaleModeBox_.addItem("MIDI", 3);
+    heatmapScaleModeBox_.setSelectedId(workingCopy_.heatmapScaleMode, juce::dontSendNotification);
+    heatmapScaleModeBox_.addListener(this);
     
     // Configure toggles
     autoSaveToggle_.setButtonText(TRANS("settings_auto_save"));
@@ -132,6 +140,7 @@ SettingsDialog::~SettingsDialog() {
     performanceModeBox_.removeListener(this);
     languageBox_.removeListener(this);
     heatmapResolutionBox_.removeListener(this);
+    heatmapScaleModeBox_.removeListener(this);
 
     // Fallback: if the window was closed via title bar/ESC without pressing OK/Cancel,
     // ensure the callback is still fired with accepted = false to keep app logic consistent.
@@ -184,6 +193,8 @@ void SettingsDialog::createTabbedInterface() {
     displayTab->addAndMakeVisible(spectralAnalysisToggle_);
     displayTab->addAndMakeVisible(heatmapResolutionLabel_);
     displayTab->addAndMakeVisible(heatmapResolutionBox_);
+    displayTab->addAndMakeVisible(heatmapScaleModeLabel_);
+    displayTab->addAndMakeVisible(heatmapScaleModeBox_);
     tabbedComponent_->addTab(TRANS("display_settings"), juce::Colours::darkgrey, displayTab, true);
 
     displayTabItems_.clear();
@@ -191,6 +202,7 @@ void SettingsDialog::createTabbedInterface() {
     displayTabItems_.push_back({ nullptr, &advancedVisualizationToggle_ });
     displayTabItems_.push_back({ nullptr, &spectralAnalysisToggle_ });
     displayTabItems_.push_back({ &heatmapResolutionLabel_, &heatmapResolutionBox_ });
+    displayTabItems_.push_back({ &heatmapScaleModeLabel_, &heatmapScaleModeBox_ });
     
     // Privacy Settings Tab
     auto* privacyTab = new juce::Component();
@@ -299,6 +311,7 @@ void SettingsDialog::updateUILanguage() {
     performanceModeLabel_.setText(TRANS("settings_performance_mode") + ":", juce::dontSendNotification);
     maxRecordingLabel_.setText(TRANS("settings_max_duration") + ":", juce::dontSendNotification);
     languageLabel_.setText(TRANS("settings_language") + ":", juce::dontSendNotification);
+    heatmapScaleModeLabel_.setText(TRANS("heatmap_scale_mode") + ":", juce::dontSendNotification);
     
     // Update toggle buttons
     autoSaveToggle_.setButtonText(TRANS("settings_auto_save"));
@@ -394,6 +407,7 @@ void SettingsDialog::applyTo(AppSettings& settings) const {
     settings.enableAdvancedVisualization = advancedVisualizationToggle_.getToggleState();
     settings.showSpectralAnalysis = spectralAnalysisToggle_.getToggleState();
     settings.heatmapResolution = heatmapResolutionBox_.getSelectedId();
+    settings.heatmapScaleMode = heatmapScaleModeBox_.getSelectedId();
 }
 
 void SettingsDialog::close(bool accepted) {

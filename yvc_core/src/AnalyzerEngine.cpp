@@ -1,4 +1,5 @@
 #include "yvc_core/AnalyzerEngine.h"
+#include <algorithm>
 
 namespace yvc {
 namespace {
@@ -17,6 +18,7 @@ AnalyzerEngine::AnalyzerEngine(const AudioConfig& config, MetricsBus& bus, Perfo
       hnr_analyzer_(audio_config_),
       spectral_analyzer_(audio_config_),
       vad_analyzer_(audio_config_),
+      formant_analyzer_(audio_config_),
       performance_config_(audio_config_.mode),
       fft_size_(performance_config_.getFFTSize()),
       hop_size_(performance_config_.getHopSize()) {
@@ -44,7 +46,14 @@ void AnalyzerEngine::process(const Sample* samples, size_t num_samples, double t
                                           static_cast<double>(audio_config_.sample_rate);
         results.timestamp = stream_start_timestamp_ + hop_offset_seconds;
 
-        results.f0 = f0_detector_.detect(analysis_ptr, analysis_samples, results.f0_valid);
+        // F0 + confidence
+        {
+            bool valid = false;
+            float conf = 0.0f;
+            results.f0 = f0_detector_.detect(analysis_ptr, analysis_samples, valid, conf);
+            results.f0_valid = valid;
+            results.f0_confidence = conf;
+        }
 
         const auto level_results = level_analyzer_.analyze(analysis_ptr, analysis_samples);
         results.rms = level_results.rms;
@@ -68,6 +77,26 @@ void AnalyzerEngine::process(const Sample* samples, size_t num_samples, double t
         results.voice_active = vad_results.voice_active;
         results.speech_rate = vad_results.speech_rate;
         results.pause_ratio = vad_results.pause_ratio;
+
+        // Formant analysis: try even if current frame unvoiced; mark valid only if F1/F2 plausible
+        auto formants = formant_analyzer_.analyze(analysis_ptr, analysis_samples);
+        if (formants.valid) {
+            results.f1 = formants.f1;
+            results.f2 = formants.f2;
+            results.f3 = formants.f3;
+            results.f4 = formants.f4;
+            results.formants_valid = true;
+        } else {
+            results.formants_valid = false;
+        }
+
+        // Post-hoc confidence refinement
+        if (results.f0_valid) {
+            float cppNorm = std::clamp(results.cpp / 30.0f, 0.0f, 1.0f);
+            float hnrNorm = std::clamp(results.hnr / 30.0f, 0.0f, 1.0f);
+            // Blend detector confidence with quality cues
+            results.f0_confidence = std::clamp(0.5f * results.f0_confidence + 0.25f * cppNorm + 0.25f * hnrNorm, 0.0f, 1.0f);
+        }
 
         metrics_bus_.write(results);
 
@@ -102,6 +131,7 @@ void AnalyzerEngine::rebuildAnalyzers() {
     hnr_analyzer_ = HNRAnalyzer(audio_config_);
     spectral_analyzer_ = SpectralAnalyzer(audio_config_);
     vad_analyzer_ = VADAnalyzer(audio_config_);
+    formant_analyzer_ = FormantAnalyzer(audio_config_);
     vad_analyzer_.reset();
 }
 

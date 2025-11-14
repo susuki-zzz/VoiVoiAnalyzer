@@ -11,6 +11,7 @@
 #include <memory>
 #include <atomic>
 #include <vector>
+#include <mutex>
 
 namespace yvc::app {
 
@@ -98,8 +99,22 @@ private:
     mutable std::mutex statsMutex_;
     Statistics stats_;
     juce::Time streamStartTime_;
-    
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(JuceAudioBridge)
+
+    // Recent mono waveform ring buffer for UI
+    mutable std::mutex recentMutex_;
+    std::vector<float> recentSamples_;
+    size_t recentWritePos_ = 0;
+    size_t recentCapacity_ = 0;
+
+public:
+    // Fetch up to maxSamples of latest mono samples (chronological order). If fewer stored returns available.
+    void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
+    // Get current sample rate of underlying engine
+    uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
+
+private:
+    // Store latest numSamples mono samples for recent waveform display (not used currently)
+    // void storeRecentMonoSamples(const float* const* inputChannelData, int numInputChannels, int numSamples);
 };
 
 } // namespace yvc::app

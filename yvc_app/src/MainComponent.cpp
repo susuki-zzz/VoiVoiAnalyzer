@@ -20,7 +20,6 @@ constexpr double kDegradeThreshold = 0.82;
 MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager)
     : metricsBus_(metricsBus)
     , audioDeviceManager_(audioDeviceManager) {
-    setSize(kDefaultWidth, kDefaultHeight);
     setOpaque(true);
     
     // Initialize localization
@@ -83,6 +82,11 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
 
     addAndMakeVisible(metricsDisplay_);
     addAndMakeVisible(heatmapDisplay_);
+    waveformDisplay_ = std::make_unique<WaveformComponent>();
+    addAndMakeVisible(waveformDisplay_.get());
+    // New scrolling waveform (time vs amplitude)
+    scrollingWaveform_ = std::make_unique<ScrollingWaveformComponent>();
+    addAndMakeVisible(scrollingWaveform_.get());
 
     // Add advanced visualization components if enabled
     if (settings_.enableAdvancedVisualization) {
@@ -119,6 +123,8 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     metricsDisplay_.updateMetrics(currentMetrics_);
     heatmapDisplay_.appendSample(currentMetrics_);
     updateStatusBar();
+    setSize(kDefaultWidth, kDefaultHeight);
+
     recordingStartMs_ = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
 
     configureTimerForCurrentBudget();
@@ -169,10 +175,15 @@ void MainComponent::resized() {
     degradationNotice_.setBounds(degradationArea.reduced(4, 0));
     statusBar_.setBounds(statusArea);
 
-    if (settings_.enableAdvancedVisualization && advancedF0Heatmap_ && advancedLevelHeatmap_) {
+    if (settings_.enableAdvancedVisualization
+        && advancedF0Heatmap_
+        && advancedLevelHeatmap_) {
         auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.4f));
-        auto topHeatmap = heatmapArea.removeFromTop(heatmapArea.getHeight() / 2);
+        auto topHeatmap = heatmapArea.removeFromTop(heatmapArea.getHeight() * 0.6f);
         advancedF0Heatmap_->setBounds(topHeatmap);
+        auto midWave = heatmapArea.removeFromTop(heatmapArea.getHeight() * 0.4f);
+        if(waveformDisplay_) waveformDisplay_->setBounds(midWave.reduced(0,4));
+        if(scrollingWaveform_) scrollingWaveform_->setBounds(midWave.reduced(0,4).removeFromBottom(midWave.getHeight()/2));
         advancedLevelHeatmap_->setBounds(heatmapArea);
         
         if (settings_.showSpectralAnalysis && spectrumAnalyzer_) {
@@ -181,7 +192,10 @@ void MainComponent::resized() {
         }
     } else {
         auto heatmapArea = area.removeFromRight(static_cast<int>(area.getWidth() * 0.35f));
-        heatmapDisplay_.setBounds(heatmapArea);
+        auto f0Area = heatmapArea.removeFromTop(heatmapArea.getHeight() * 0.65f);
+        heatmapDisplay_.setBounds(f0Area);
+        if(waveformDisplay_) waveformDisplay_->setBounds(heatmapArea.reduced(0,4));
+        if(scrollingWaveform_) scrollingWaveform_->setBounds(heatmapArea.reduced(0,4).removeFromBottom(heatmapArea.getHeight()/2));
     }
     
     metricsDisplay_.setBounds(area);
@@ -200,6 +214,16 @@ void MainComponent::timerCallback() {
         }
         if (advancedLevelHeatmap_) {
             advancedLevelHeatmap_->appendSample(currentMetrics_.rms, currentMetrics_.timestamp);
+        }
+    }
+
+    // Update waveform samples
+    {
+        std::vector<float> recent;
+        if (audioBridge_) {
+            audioBridge_->getRecentMonoSamples(recent, 1024);
+            waveformDisplay_->setSamples(recent, (float)audioBridge_->getSampleRate());
+            if(scrollingWaveform_ && !recent.empty()) scrollingWaveform_->pushSamples(recent.data(), recent.size(), (float)audioBridge_->getSampleRate());
         }
     }
 
@@ -314,6 +338,7 @@ void MainComponent::updateVisualizationLayout() {
         removeChildComponent(spectrumAnalyzer_.get());
         spectrumAnalyzer_.reset();
     }
+    // keep waveform components
     
     if (settings_.enableAdvancedVisualization) {
         advancedF0Heatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_f0"));
@@ -338,6 +363,13 @@ void MainComponent::updateVisualizationLayout() {
     if (settings_.showSpectralAnalysis) {
         spectrumAnalyzer_ = std::make_unique<SpectrumAnalyzerComponent>();
         addAndMakeVisible(spectrumAnalyzer_.get());
+    }
+    
+    // Apply heatmap scale mode
+    switch (settings_.heatmapScaleMode) {
+        case 2: heatmapDisplay_.setScaleMode(HeatmapComponent::ScaleMode::LogHz); break;
+        case 3: heatmapDisplay_.setScaleMode(HeatmapComponent::ScaleMode::MidiNote); break;
+        default: heatmapDisplay_.setScaleMode(HeatmapComponent::ScaleMode::LinearHz); break;
     }
     
     resized();
