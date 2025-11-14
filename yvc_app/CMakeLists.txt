@@ -205,6 +205,7 @@ if(JUCE_FOUND)
             src/VisualizationComponents.cpp
             src/LocalizationManager.cpp
             src/MetricsComponents.cpp
+            src/TimelineController.cpp
         )
 
         target_link_libraries(yvc_app_gui_tests
