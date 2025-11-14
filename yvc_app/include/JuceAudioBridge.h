@@ -85,8 +85,17 @@ public:
         }
     };
 
+    struct AudioSlice { std::vector<float> samples; double endTimestamp = 0.0; };
+
     Statistics getStatistics() const;
     void resetStatistics();
+
+    // Fetch up to maxSamples of latest mono samples with the block end timestamp of the last sample.
+    void getRecentMonoSamples(AudioSlice& out, size_t maxSamples) const;
+    // Backward-compatible helper
+    void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
+    // Get current sample rate of underlying engine
+    uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
 
 private:
     yvc::MetricsBus& metricsBus_;
@@ -105,12 +114,13 @@ private:
     std::vector<float> recentSamples_;
     size_t recentWritePos_ = 0;
     size_t recentCapacity_ = 0;
+    double recentLastTimestamp_ = 0.0;
 
 public:
     // Fetch up to maxSamples of latest mono samples (chronological order). If fewer stored returns available.
-    void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
+    // void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
     // Get current sample rate of underlying engine
-    uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
+    // uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
 
 private:
     // Store latest numSamples mono samples for recent waveform display (not used currently)

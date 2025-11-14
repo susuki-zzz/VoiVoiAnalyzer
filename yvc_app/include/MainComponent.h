@@ -18,6 +18,7 @@
 #include "JuceAudioBridge.h"
 #include "WaveformComponent.h"
 #include "ScrollingWaveformComponent.h"
+#include "TimelineController.h"
 #include "yvc_core/MetricsBus.h"
 
 namespace yvc::app {
@@ -77,6 +78,9 @@ private:
     juce::Label statusBar_;
     juce::Label fpsIndicator_;
     juce::Label degradationNotice_;
+
+    // Timeline controller shared across time-axis components
+    std::unique_ptr<TimelineController> timeline_;
 
     juce::int64 lastPaintTimestampMs_ = 0;
     double accumulatedFrameTimeMs_ = 0.0;

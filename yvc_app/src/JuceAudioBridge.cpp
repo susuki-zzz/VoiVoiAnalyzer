@@ -82,11 +82,14 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
             recentCapacity_ = static_cast<size_t>(engine_->getConfig().sample_rate);
             recentSamples_.assign(recentCapacity_, 0.0f);
             recentWritePos_ = 0;
+            recentLastTimestamp_ = 0.0;
         }
         for (int i = 0; i < numSamples; ++i) {
             recentSamples_[recentWritePos_] = monoBuffer_[static_cast<size_t>(i)];
             recentWritePos_ = (recentWritePos_ + 1) % recentCapacity_;
         }
+        // The timestamp corresponds to the end of this block
+        recentLastTimestamp_ = timestamp;
     }
 
     // Update statistics
@@ -180,6 +183,22 @@ void JuceAudioBridge::getRecentMonoSamples(std::vector<float>& out, size_t maxSa
     for (size_t i = 0; i < n; ++i) {
         out[i] = recentSamples_[(start + i) % recentCapacity_];
     }
+}
+
+void JuceAudioBridge::getRecentMonoSamples(AudioSlice& out, size_t maxSamples) const {
+    std::lock_guard<std::mutex> lk(recentMutex_);
+    if (recentCapacity_ == 0 || recentSamples_.empty()) {
+        out.samples.clear();
+        out.endTimestamp = 0.0;
+        return;
+    }
+    size_t n = std::min(maxSamples, recentCapacity_);
+    out.samples.resize(n);
+    size_t start = (recentWritePos_ + recentCapacity_ - n) % recentCapacity_;
+    for (size_t i = 0; i < n; ++i) {
+        out.samples[i] = recentSamples_[(start + i) % recentCapacity_];
+    }
+    out.endTimestamp = recentLastTimestamp_;
 }
 
 } // namespace yvc::app

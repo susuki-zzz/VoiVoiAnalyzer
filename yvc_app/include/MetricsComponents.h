@@ -13,6 +13,7 @@
 #include <cmath>
 
 #include "yvc_core/Types.h"
+#include "TimelineController.h"
 
 namespace yvc::app {
 
@@ -112,7 +113,7 @@ private:
     std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
 };
 
-class HeatmapComponent : public juce::Component {
+class HeatmapComponent : public juce::Component, public ITimelineListener {
 public:
     enum class ScaleMode { LinearHz, LogHz, MidiNote };
 
@@ -125,12 +126,18 @@ public:
     void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
     void setScaleMode(ScaleMode mode) { scaleMode_ = mode; repaint(); }
 
+    // Timeline
+    void setTimelineController(TimelineController* ctl) { timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
+    void timelineRangeChanged(const juce::Range<double>&) override { repaint(); }
+    void timelinePlayheadChanged(double) override { repaint(); }
+
 private:
     void drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples,
-                     float minValue, float maxValue, const juce::String& label, const juce::String& unit);
+                     const std::deque<double>& times, float minValue, float maxValue, const juce::String& label, const juce::String& unit);
     float mapFrequencyToY(float freq, float minFreq, float maxFreq, float height) const;
     juce::String formatAxisLabel(float freq) const;
 
+    std::deque<double> timeHistory_;
     std::deque<float> f0History_;
     std::deque<float> f0ConfHistory_;
     std::deque<float> rmsHistory_;
@@ -140,6 +147,8 @@ private:
     std::deque<float> f4History_;
     int maxSamples_ = 180;
     ScaleMode scaleMode_ = ScaleMode::LinearHz;
+
+    TimelineController* timeline_ = nullptr;
 };
 
 } // namespace yvc::app

@@ -10,6 +10,7 @@
 #include <functional>
 #include <cmath>
 #include <algorithm>
+#include "TimelineController.h"
 
 namespace yvc::app {
 
@@ -56,16 +57,19 @@ inline void AdvancedHeatmapComponent::drawZoomOverlay(juce::Graphics& g){ g.setC
 inline juce::Colour AdvancedHeatmapComponent::getValueColour(float v) const{ float nv=juce::jlimit(0.0f,1.0f,(v-config_.minValue)/(config_.maxValue-config_.minValue)); return config_.lowColour.interpolatedWith(config_.highColour,nv);} inline double AdvancedHeatmapComponent::timestampToX(double ts, juce::Rectangle<int> area) const { if(zoomEnd_<=zoomStart_) return area.getX(); return area.getX()+(ts-zoomStart_)*(area.getWidth()/(zoomEnd_-zoomStart_)); } inline double AdvancedHeatmapComponent::xToTimestamp(int x, juce::Rectangle<int> area) const { return zoomStart_ + (double(x-area.getX())/double(area.getWidth()))*(zoomEnd_-zoomStart_); }
 
 // ================= ComparativeMetricsComponent =================
-class ComparativeMetricsComponent : public juce::Component {
+class ComparativeMetricsComponent : public juce::Component, public ITimelineListener {
 public:
     ComparativeMetricsComponent();
     struct SessionData { juce::String name; juce::Colour colour; std::vector<yvc::AnalysisResults> data; float alpha = 1.0f; bool visible = true; };
     void addSession(const juce::String& name, const std::vector<yvc::AnalysisResults>& data, juce::Colour colour = juce::Colours::white);
     void removeSession(const juce::String& name); void setSessionVisibility(const juce::String& name,bool visible); void setSessionAlpha(const juce::String& name,float alpha); void clearAllSessions();
     void setDisplayedMetric(const juce::String& metricName); void setTimeRange(double startTime,double endTime);
+    void setTimelineController(TimelineController* ctl) { timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
+    void timelineRangeChanged(const juce::Range<double>& r) override { setTimeRange(r.getStart(), r.getEnd()); }
+    void timelinePlayheadChanged(double) override {}
     void paint(juce::Graphics& g) override; void resized() override;
 protected:
-    std::vector<SessionData> sessions_; juce::String currentMetric_="f0"; double timeStart_=0.0; double timeEnd_=60.0;
+    std::vector<SessionData> sessions_; juce::String currentMetric_="f0"; double timeStart_=0.0; double timeEnd_=60.0; TimelineController* timeline_ = nullptr;
     void drawSession(juce::Graphics& g,const SessionData& session, juce::Rectangle<int> area); float getMetricValue(const yvc::AnalysisResults& r,const juce::String& metric); juce::String getMetricUnit(const juce::String& metric); std::pair<float,float> getMetricRange(const juce::String& metric);
     friend class test::ComparativeMetricsComponentTestPeer;
 };

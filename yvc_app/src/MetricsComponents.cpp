@@ -103,6 +103,7 @@ std::unique_ptr<MetricComponent> MetricsDisplayComponent::createComponentFor(Met
 HeatmapComponent::HeatmapComponent(){ setSize(200,300); }
 
 void HeatmapComponent::appendSample(const yvc::AnalysisResults& results) {
+    timeHistory_.push_back(results.timestamp);
     f0History_.push_back(results.f0_valid ? results.f0 : 0.0f);
     f0ConfHistory_.push_back(results.f0_valid ? juce::jlimit(0.0f,1.0f, results.f0_confidence) : 0.0f);
     rmsHistory_.push_back(results.rms);
@@ -118,7 +119,7 @@ void HeatmapComponent::appendSample(const yvc::AnalysisResults& results) {
         f4History_.push_back(0.0f);
     }
     auto trim = [this](auto& dq){ while ((int)dq.size() > maxSamples_) dq.pop_front(); };
-    trim(f0History_); trim(f0ConfHistory_); trim(rmsHistory_); trim(f1History_); trim(f2History_); trim(f3History_); trim(f4History_);
+    trim(timeHistory_); trim(f0History_); trim(f0ConfHistory_); trim(rmsHistory_); trim(f1History_); trim(f2History_); trim(f3History_); trim(f4History_);
     repaint();
 }
 
@@ -136,18 +137,20 @@ void HeatmapComponent::paint(juce::Graphics& g){ auto bounds=getLocalBounds().to
         for (auto f: major) if (f>=minF && f<=maxF) emitLabel(f);
     } else {
         for(int i=0;i<=6;++i){ float fMarker=minF + (maxF-minF) * (i/6.0f); emitLabel(fMarker);} }
-    // F0 with intensity colour using confidence
-    if(!f0History_.empty()){
-        float cw=f0Area.getWidth()/ (float)f0History_.size();
-        for(size_t i=0;i<f0History_.size(); ++i){ float f=f0History_[i]; float y=f0Area.getBottom()-mapFrequencyToY(f,minF,maxF,f0Area.getHeight()); float conf = (i < f0ConfHistory_.size()) ? f0ConfHistory_[i] : 0.0f; juce::Colour c = juce::Colour::fromHSV(juce::jlimit(0.0f,1.0f,0.66f - 0.66f*conf), 0.9f, 0.9f, 0.6f); g.setColour(c); g.fillRect(juce::Rectangle<float>(f0Area.getX()+i*cw, y, cw, 2.0f)); }
+    // F0 with intensity colour using confidence and timeline
+    juce::Range<double> range{0.0, 0.0}; if(timeline_) range = timeline_->getVisibleRange();
+    if(!f0History_.empty() && !timeHistory_.empty()){
+        int N = (int)std::min(f0History_.size(), timeHistory_.size());
+        for(int i=0;i<N;++i){ double ts = timeHistory_[i]; if(range.getLength()>0 && (ts < range.getStart() || ts > range.getEnd())) continue; float f=f0History_[i]; float y=f0Area.getBottom()-mapFrequencyToY(f,minF,maxF,f0Area.getHeight()); float tnorm = range.getLength()>0 ? float((ts - range.getStart())/range.getLength()) : float(i)/float(N-1); float x = f0Area.getX() + tnorm * f0Area.getWidth(); float conf = (i < (int)f0ConfHistory_.size()) ? f0ConfHistory_[i] : 0.0f; juce::Colour c = juce::Colour::fromHSV(juce::jlimit(0.0f,1.0f,0.66f - 0.66f*conf), 0.9f, 0.9f, 0.6f); g.setColour(c); g.fillRect(juce::Rectangle<float>(x, y, 2.0f, 2.0f)); }
     }
     // Formants overlay
-    auto drawFormant=[&](const std::deque<float>& hist, juce::Colour col){ if(hist.empty()) return; float cw=f0Area.getWidth()/ (float)hist.size(); juce::Path p; bool started=false; for(size_t i=0;i<hist.size(); ++i){ float f=hist[i]; if(f<=0) continue; float y=f0Area.getBottom()-mapFrequencyToY(f,minF,maxF,f0Area.getHeight()); float x=f0Area.getX()+ (float)i*cw + cw*0.5f; if(!started){ p.startNewSubPath(x,y); started=true;} else p.lineTo(x,y);} g.setColour(col); g.strokePath(p, juce::PathStrokeType(1.4f)); }; drawFormant(f1History_, juce::Colours::cyan); drawFormant(f2History_, juce::Colours::green); drawFormant(f3History_, juce::Colours::orange); drawFormant(f4History_, juce::Colours::magenta); 
+    auto drawFormant=[&](const std::deque<float>& hist, juce::Colour col){ if(hist.empty()) return; juce::Path p; bool started=false; int N=(int)std::min(hist.size(), timeHistory_.size()); for(int i=0;i<N; ++i){ float f=hist[i]; if(f<=0) continue; double ts=timeHistory_[i]; if(range.getLength()>0 && (ts<range.getStart()||ts>range.getEnd())) continue; float y=f0Area.getBottom()-mapFrequencyToY(f,minF,maxF,f0Area.getHeight()); float tnorm = range.getLength()>0 ? float((ts - range.getStart())/range.getLength()) : float(i)/float(N-1); float x=f0Area.getX()+ tnorm*f0Area.getWidth(); if(!started){ p.startNewSubPath(x,y); started=true;} else p.lineTo(x,y);} g.setColour(col); g.strokePath(p, juce::PathStrokeType(1.4f)); };
+    drawFormant(f1History_, juce::Colours::cyan); drawFormant(f2History_, juce::Colours::green); drawFormant(f3History_, juce::Colours::orange); drawFormant(f4History_, juce::Colours::magenta); 
     // RMS heatmap
-    drawHeatmap(g, rmsArea, rmsHistory_, -60.0f, 0.0f, "RMS", "dBFS"); }
+    drawHeatmap(g, rmsArea, rmsHistory_, timeHistory_, -60.0f, 0.0f, "RMS", "dBFS"); }
 
 void HeatmapComponent::resized(){ setMaxSamples(getWidth()/2); }
 
-void HeatmapComponent::drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples, float minValue, float maxValue, const juce::String& label, const juce::String& unit){ g.setColour(juce::Colours::black); g.fillRect(area); g.setColour(juce::Colours::darkgrey); g.drawRect(area,1.0f); g.setColour(juce::Colours::white); g.setFont(12.0f); auto labelArea=area.removeFromTop(20.0f); g.drawText(label+" ("+unit+")", labelArea.reduced(4.0f), juce::Justification::centredLeft); if(samples.empty()) return; float w=area.getWidth(); float h=area.getHeight(); float cw=w/(float)samples.size(); for(size_t i=0;i<samples.size(); ++i){ float v=samples[i]; float norm=(v-minValue)/(maxValue-minValue); norm=juce::jlimit(0.0f,1.0f,norm); juce::Colour c; if(norm<0.33f) c=juce::Colours::blue.interpolatedWith(juce::Colours::green,norm*3.0f); else if(norm<0.66f) c=juce::Colours::green.interpolatedWith(juce::Colours::yellow,(norm-0.33f)*3.0f); else c=juce::Colours::yellow.interpolatedWith(juce::Colours::red,(norm-0.66f)*3.0f); g.setColour(c); float x=area.getX()+ (float)i*cw; g.fillRect(juce::Rectangle<float>(x, area.getY(), cw, h)); } }
+void HeatmapComponent::drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples, const std::deque<double>& times, float minValue, float maxValue, const juce::String& label, const juce::String& unit){ g.setColour(juce::Colours::black); g.fillRect(area); g.setColour(juce::Colours::darkgrey); g.drawRect(area,1.0f); g.setColour(juce::Colours::white); g.setFont(12.0f); auto labelArea=area.removeFromTop(20.0f); g.drawText(label+" ("+unit+")", labelArea.reduced(4.0f), juce::Justification::centredLeft); if(samples.empty()||times.empty()) return; juce::Range<double> range{0.0,0.0}; if(timeline_) range = timeline_->getVisibleRange(); int N=(int)std::min(samples.size(), times.size()); for(int i=0;i<N; ++i){ double ts=times[i]; if(range.getLength()>0 && (ts<range.getStart()||ts>range.getEnd())) continue; float v=samples[i]; float norm=(v-minValue)/(maxValue-minValue); norm=juce::jlimit(0.0f,1.0f,norm); juce::Colour c; if(norm<0.33f) c=juce::Colours::blue.interpolatedWith(juce::Colours::green,norm*3.0f); else if(norm<0.66f) c=juce::Colours::green.interpolatedWith(juce::Colours::yellow,(norm-0.33f)*3.0f); else c=juce::Colours::yellow.interpolatedWith(juce::Colours::red,(norm-0.66f)*3.0f); float tnorm = range.getLength()>0 ? float((ts - range.getStart())/range.getLength()) : float(i)/float(N-1); float x=area.getX()+ tnorm * area.getWidth(); g.setColour(c); g.fillRect(juce::Rectangle<float>(x, area.getY(), 2.0f, area.getHeight())); } }
 
 } // namespace yvc::app

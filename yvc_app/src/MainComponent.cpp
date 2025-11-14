@@ -42,6 +42,11 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     
     audioBridge_ = std::make_unique<JuceAudioBridge>(metricsBus_, audioConfig);
 
+    // Timeline controller shared across time-axis components
+    timeline_ = std::make_unique<TimelineController>();
+    timeline_->setWindowSeconds(10.0);
+    timeline_->setFollowLatest(true);
+
     // UI setup
     auto& presets = presetManager_.getPresets();
     int presetId = 1;
@@ -88,6 +93,10 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     scrollingWaveform_ = std::make_unique<ScrollingWaveformComponent>();
     addAndMakeVisible(scrollingWaveform_.get());
 
+    // Wire timeline to time-axis components
+    heatmapDisplay_.setTimelineController(timeline_.get());
+    if (scrollingWaveform_) scrollingWaveform_->setTimelineController(timeline_.get());
+
     // Add advanced visualization components if enabled
     if (settings_.enableAdvancedVisualization) {
         advancedF0Heatmap_ = std::make_unique<AdvancedHeatmapComponent>(TRANS("heatmap_f0"));
@@ -111,6 +120,12 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
         levelConfig.lowColour = juce::Colours::darkblue;
         levelConfig.highColour = juce::Colours::yellow;
         advancedLevelHeatmap_->setConfig(levelConfig);
+
+        // Hook zoom/scrub to timeline
+        advancedF0Heatmap_->onZoomRangeChanged = [this](double s,double e){ if(timeline_) timeline_->setVisibleRange({s,e}); };
+        advancedLevelHeatmap_->onZoomRangeChanged = [this](double s,double e){ if(timeline_) timeline_->setVisibleRange({s,e}); };
+        advancedF0Heatmap_->onScrubPositionChanged = [this](double t){ if(timeline_) timeline_->setPlayhead(t); };
+        advancedLevelHeatmap_->onScrubPositionChanged = [this](double t){ if(timeline_) timeline_->setPlayhead(t); };
     }
     
     if (settings_.showSpectralAnalysis) {
@@ -206,24 +221,30 @@ void MainComponent::timerCallback() {
     updateStatusBar();
     metricsDisplay_.updateMetrics(currentMetrics_);
     heatmapDisplay_.appendSample(currentMetrics_);
-    
-    if (settings_.enableAdvancedVisualization) {
+
+    // Advance timeline to latest timestamp
+    if (timeline_) timeline_->advanceToLatest(currentMetrics_.timestamp);
+    // Reflect timeline to advanced heatmaps (if present)
+    if (settings_.enableAdvancedVisualization && timeline_) {
+        auto st = timeline_->getState();
         if (advancedF0Heatmap_) {
-            advancedF0Heatmap_->appendSample(currentMetrics_.f0_valid ? currentMetrics_.f0 : 0.0f, 
-                                           currentMetrics_.timestamp);
+            advancedF0Heatmap_->setZoomRange(st.visibleRange.getStart(), st.visibleRange.getEnd());
+            advancedF0Heatmap_->setPlayheadPosition(st.playhead);
         }
         if (advancedLevelHeatmap_) {
-            advancedLevelHeatmap_->appendSample(currentMetrics_.rms, currentMetrics_.timestamp);
+            advancedLevelHeatmap_->setZoomRange(st.visibleRange.getStart(), st.visibleRange.getEnd());
+            advancedLevelHeatmap_->setPlayheadPosition(st.playhead);
         }
     }
 
-    // Update waveform samples
+    // Update waveform samples with timestamps
     {
-        std::vector<float> recent;
         if (audioBridge_) {
-            audioBridge_->getRecentMonoSamples(recent, 1024);
-            waveformDisplay_->setSamples(recent, (float)audioBridge_->getSampleRate());
-            if(scrollingWaveform_ && !recent.empty()) scrollingWaveform_->pushSamples(recent.data(), recent.size(), (float)audioBridge_->getSampleRate());
+            JuceAudioBridge::AudioSlice slice;
+            audioBridge_->getRecentMonoSamples(slice, 1024);
+            waveformDisplay_->setSamples(slice.samples, (float)audioBridge_->getSampleRate());
+            if(scrollingWaveform_ && !slice.samples.empty())
+                scrollingWaveform_->pushSamples(slice.samples.data(), slice.samples.size(), (float)audioBridge_->getSampleRate(), slice.endTimestamp);
         }
     }
 
@@ -358,6 +379,12 @@ void MainComponent::updateVisualizationLayout() {
         levelConfig.maxValue = 6.0f;
         levelConfig.unit = "dBFS";
         advancedLevelHeatmap_->setConfig(levelConfig);
+
+        // Hook zoom/scrub to timeline
+        advancedF0Heatmap_->onZoomRangeChanged = [this](double s,double e){ if(timeline_) timeline_->setVisibleRange({s,e}); };
+        advancedLevelHeatmap_->onZoomRangeChanged = [this](double s,double e){ if(timeline_) timeline_->setVisibleRange({s,e}); };
+        advancedF0Heatmap_->onScrubPositionChanged = [this](double t){ if(timeline_) timeline_->setPlayhead(t); };
+        advancedLevelHeatmap_->onScrubPositionChanged = [this](double t){ if(timeline_) timeline_->setPlayhead(t); };
     }
     
     if (settings_.showSpectralAnalysis) {
@@ -371,6 +398,10 @@ void MainComponent::updateVisualizationLayout() {
         case 3: heatmapDisplay_.setScaleMode(HeatmapComponent::ScaleMode::MidiNote); break;
         default: heatmapDisplay_.setScaleMode(HeatmapComponent::ScaleMode::LinearHz); break;
     }
+
+    // Wire timeline again (in case of re-create)
+    heatmapDisplay_.setTimelineController(timeline_.get());
+    if (scrollingWaveform_) scrollingWaveform_->setTimelineController(timeline_.get());
     
     resized();
 }

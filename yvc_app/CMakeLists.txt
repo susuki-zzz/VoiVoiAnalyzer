@@ -109,6 +109,7 @@ if(JUCE_FOUND)
             src/VisualizationComponents.cpp
             src/WaveformComponent.cpp
             src/ScrollingWaveformComponent.cpp
+            src/TimelineController.cpp
     )
 
     # Add include directories

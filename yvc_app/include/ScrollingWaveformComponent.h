@@ -7,10 +7,11 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <vector>
 #include <mutex>
+#include "TimelineController.h"
 
 namespace yvc::app {
 
-class ScrollingWaveformComponent : public juce::Component {
+class ScrollingWaveformComponent : public juce::Component, public ITimelineListener {
 public:
     ScrollingWaveformComponent();
     ~ScrollingWaveformComponent() override = default;
@@ -18,8 +19,11 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override {}
 
-    // Push a block of mono samples (float32) at current time.
-    void pushSamples(const float* samples, size_t numSamples, float sampleRate);
+    // Push a block of mono samples (float32) at block end timestamp (seconds).
+    void pushSamples(const float* samples, size_t numSamples, float sampleRate, double blockEndTimestamp);
+
+    // Backward compatibility; if timestamp is unavailable, just append and free-run.
+    void pushSamples(const float* samples, size_t numSamples, float sampleRate) { pushSamples(samples, numSamples, sampleRate, -1.0); }
 
     // Set how many seconds of audio to retain & display (reallocates buffer).
     void setDisplayDurationSeconds(double seconds);
@@ -29,6 +33,11 @@ public:
 
     // Enable / disable automatic vertical range adaptation based on current buffer.
     void setAutoRange(bool enabled) { std::lock_guard<std::mutex> lk(mutex_); autoRange_ = enabled; repaint(); }
+
+    // Timeline
+    void setTimelineController(TimelineController* ctl) { std::lock_guard<std::mutex> lk(mutex_); timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
+    void timelineRangeChanged(const juce::Range<double>&) override { repaint(); }
+    void timelinePlayheadChanged(double) override { repaint(); }
 
 private:
     void ensureCapacityLocked();
@@ -44,7 +53,12 @@ private:
     float minY_ = -1.0f;
     float maxY_ = 1.0f;
 
+    // Time mapping
+    double firstTimestamp_ = 0.0; // timestamp at ring_[0] for current logical order when full
+    double lastTimestamp_ = 0.0;  // block end timestamp of latest write
+
     std::mutex mutex_;
+    TimelineController* timeline_ = nullptr;
 };
 
 } // namespace yvc::app
