@@ -30,18 +30,24 @@
 
 namespace yvc::app {
 
-// Application-wide constants
+/// <summary>
+/// Application-wide constants for window sizing.
+/// </summary>
 constexpr int kDefaultWindowWidth = 1200;
 constexpr int kDefaultWindowHeight = 720;
 constexpr int kMinWindowWidth = 800;
 constexpr int kMinWindowHeight = 600;
 
-// Performance targets
+/// <summary>
+/// Performance targets for FPS throttling.
+/// </summary>
 constexpr double kTargetFpsStandard = 60.0;
 constexpr double kTargetFpsDegraded = 45.0;
 constexpr double kTargetFpsMinimum = 30.0;
 
-// Audio constraints
+/// <summary>
+/// Audio configuration constraints.
+/// </summary>
 constexpr double kMaxRecordingTimeDefaultSeconds = 3600.0; // 1 hour
 constexpr int kDefaultBufferSize = 256;
 constexpr double kDefaultSampleRate = 48000.0;

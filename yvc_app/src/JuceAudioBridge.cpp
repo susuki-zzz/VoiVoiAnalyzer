@@ -8,6 +8,9 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// Constructs the bridge and initializes analyzer engine and waveform buffer.
+/// </summary>
 JuceAudioBridge::JuceAudioBridge(yvc::MetricsBus& metricsBus, const yvc::AudioConfig& config)
     : metricsBus_(metricsBus) {
     engine_ = std::make_unique<yvc::AnalyzerEngine>(config, metricsBus_);
@@ -17,10 +20,16 @@ JuceAudioBridge::JuceAudioBridge(yvc::MetricsBus& metricsBus, const yvc::AudioCo
     LOG_INFO("JuceAudioBridge created");
 }
 
+/// <summary>
+/// Destructor logs destruction.
+/// </summary>
 JuceAudioBridge::~JuceAudioBridge() {
     LOG_INFO("JuceAudioBridge destroyed");
 }
 
+/// <summary>
+/// Real-time audio callback invoked by JUCE. Mixes input to mono, timestamps, and processes.
+/// </summary>
 void JuceAudioBridge::audioDeviceIOCallbackWithContext(
     const float* const* inputChannelData,
     int numInputChannels,
@@ -112,6 +121,9 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
     }
 }
 
+/// <summary>
+/// Called when JUCE device is starting; resets timing and statistics.
+/// </summary>
 void JuceAudioBridge::audioDeviceAboutToStart(juce::AudioIODevice* device) {
     if (device == nullptr) {
         LOG_WARN("audioDeviceAboutToStart called with null device");
@@ -128,17 +140,26 @@ void JuceAudioBridge::audioDeviceAboutToStart(juce::AudioIODevice* device) {
     resetStatistics();
 }
 
+/// <summary>
+/// Called when JUCE device stops.
+/// </summary>
 void JuceAudioBridge::audioDeviceStopped() {
     LOG_INFO("Audio device stopped");
     stats_.isRunning = false;
 }
 
+/// <summary>
+/// Called by JUCE on device error.
+/// </summary>
 void JuceAudioBridge::audioDeviceError(const juce::String& errorMessage) {
     LOG_ERRORF("Audio device error: %s", errorMessage.toRawUTF8());
     std::lock_guard<std::mutex> lock(statsMutex_);
     stats_.xruns++;
 }
 
+/// <summary>
+/// Updates analyzer engine with new audio configuration.
+/// </summary>
 void JuceAudioBridge::updateConfig(const yvc::AudioConfig& config) {
     LOG_INFOF("Updating audio config: SR=%u, buffer=%u, mode=%d",
               config.sample_rate, config.buffer_size, static_cast<int>(config.mode));
@@ -149,20 +170,32 @@ void JuceAudioBridge::updateConfig(const yvc::AudioConfig& config) {
     resetStatistics();
 }
 
+/// <summary>
+/// Gets current performance mode.
+/// </summary>
 yvc::PerformanceMode JuceAudioBridge::getPerformanceMode() const {
     return engine_->getPerformanceMode();
 }
 
+/// <summary>
+/// Sets performance mode.
+/// </summary>
 void JuceAudioBridge::setPerformanceMode(yvc::PerformanceMode mode) {
     LOG_INFOF("Setting performance mode: %d", static_cast<int>(mode));
     engine_->setPerformanceMode(mode);
 }
 
+/// <summary>
+/// Gets a snapshot of current runtime statistics.
+/// </summary>
 JuceAudioBridge::Statistics JuceAudioBridge::getStatistics() const {
     std::lock_guard<std::mutex> lock(statsMutex_);
     return stats_;
 }
 
+/// <summary>
+/// Resets statistics counters.
+/// </summary>
 void JuceAudioBridge::resetStatistics() {
     std::lock_guard<std::mutex> lock(statsMutex_);
     stats_.totalSamplesProcessed = 0;
@@ -171,6 +204,9 @@ void JuceAudioBridge::resetStatistics() {
     stats_.averageLatencyMs = 0.0;
 }
 
+/// <summary>
+/// Retrieves recent mono samples (oldest first) without timestamp.
+/// </summary>
 void JuceAudioBridge::getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const {
     std::lock_guard<std::mutex> lk(recentMutex_);
     if (recentCapacity_ == 0 || recentSamples_.empty()) {
@@ -186,6 +222,9 @@ void JuceAudioBridge::getRecentMonoSamples(std::vector<float>& out, size_t maxSa
     }
 }
 
+/// <summary>
+/// Retrieves recent mono samples with end timestamp of last block.
+/// </summary>
 void JuceAudioBridge::getRecentMonoSamples(AudioSlice& out, size_t maxSamples) const {
     std::lock_guard<std::mutex> lk(recentMutex_);
     if (recentCapacity_ == 0 || recentSamples_.empty()) {

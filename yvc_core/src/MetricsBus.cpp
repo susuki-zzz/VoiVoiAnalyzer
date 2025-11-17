@@ -10,6 +10,9 @@ MetricsBus::MetricsBus() {
     history_.reserve(max_history_size_);
 }
 
+/// <summary>
+/// Writes a new metrics frame (producer). Uses buffer swap and appends to history.
+/// </summary>
 void MetricsBus::write(const AnalysisResults& metrics) {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -27,6 +30,9 @@ void MetricsBus::write(const AnalysisResults& metrics) {
     }
 }
 
+/// <summary>
+/// Reads latest metrics (consumer). Returns false if no fresh data.
+/// </summary>
 bool MetricsBus::read(AnalysisResults& metrics) {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -39,6 +45,9 @@ bool MetricsBus::read(AnalysisResults& metrics) {
     return true;
 }
 
+/// <summary>
+/// Returns up to max_count recent metrics; copies out of internal history.
+/// </summary>
 std::vector<AnalysisResults> MetricsBus::getHistory(size_t max_count) const {
     std::lock_guard<std::mutex> lock(mutex_);
     
@@ -53,17 +62,26 @@ std::vector<AnalysisResults> MetricsBus::getHistory(size_t max_count) const {
     );
 }
 
+/// <summary>
+/// Clears history and new-data flag.
+/// </summary>
 void MetricsBus::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
     history_.clear();
     has_new_data_ = false;
 }
 
+/// <summary>
+/// Non-consuming check for fresh metrics.
+/// </summary>
 bool MetricsBus::hasNewData() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return has_new_data_;
 }
 
+/// <summary>
+/// Returns latest metrics snapshot (may not be new).
+/// </summary>
 AnalysisResults MetricsBus::getLatest() const {
     std::lock_guard<std::mutex> lock(mutex_);
     return buffer_[read_index_];

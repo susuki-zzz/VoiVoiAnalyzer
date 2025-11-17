@@ -29,6 +29,9 @@ PerformanceModeConfig::PerformanceModeConfig(PerformanceMode mode)
     }
 }
 
+/// <summary>
+/// Feature gating by mode (expensive features disabled in Light mode).
+/// </summary>
 bool PerformanceModeConfig::isFeatureEnabled(const std::string& feature) const {
     // In Light mode, some advanced features may be disabled
     if (mode_ == PerformanceMode::Mode_Light) {
@@ -39,6 +42,9 @@ bool PerformanceModeConfig::isFeatureEnabled(const std::string& feature) const {
     return true;
 }
 
+/// <summary>
+/// Applies mode-driven FFT/hop sizing; ensures buffer size >= hop size.
+/// </summary>
 AudioConfig PerformanceModeConfig::applyToConfig(const AudioConfig& base_config, PerformanceMode mode) {
     AudioConfig config = base_config;
     config.mode = mode;
@@ -55,6 +61,9 @@ AudioConfig PerformanceModeConfig::applyToConfig(const AudioConfig& base_config,
     return config;
 }
 
+/// <summary>
+/// Convenience wrapper using mode in provided config.
+/// </summary>
 AudioConfig configureForPerformanceMode(const AudioConfig& config) {
     return PerformanceModeConfig::applyToConfig(config, config.mode);
 }

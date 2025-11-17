@@ -16,6 +16,9 @@ constexpr int kRowHeight = 30;
 constexpr int kMargin = 12;
 }
 
+/// <summary>
+/// Launches the settings dialog asynchronously.
+/// </summary>
 void SettingsDialog::showDialog(const AppSettings& currentSettings, juce::Component* parent, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose) {
     auto* dialog = new SettingsDialog(currentSettings, audioDeviceManager, std::move(onClose));
     
@@ -32,6 +35,9 @@ void SettingsDialog::showDialog(const AppSettings& currentSettings, juce::Compon
     options.launchAsync();
 }
 
+/// <summary>
+/// Constructs the settings dialog and initializes UI components.
+/// </summary>
 SettingsDialog::SettingsDialog(const AppSettings& currentSettings, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose)
     : workingCopy_(currentSettings)
     , onClose_(std::move(onClose))
@@ -150,6 +156,9 @@ SettingsDialog::~SettingsDialog() {
     }
 }
 
+/// <summary>
+/// Builds the tabbed interface and populates per-tab component arrays.
+/// </summary>
 void SettingsDialog::createTabbedInterface() {
     tabbedComponent_ = std::make_unique<juce::TabbedComponent>(juce::TabbedButtonBar::TabsAtTop);
     
@@ -256,6 +265,9 @@ void SettingsDialog::resized() {
     }
 }
 
+/// <summary>
+/// Helper to layout label/control rows inside a tab.
+/// </summary>
 void SettingsDialog::layoutTabItems(juce::Component* tab, const std::vector<std::pair<juce::Component*, juce::Component*>>& items) {
     if (!tab) return;
     
@@ -277,6 +289,9 @@ void SettingsDialog::layoutTabItems(juce::Component* tab, const std::vector<std:
     }
 }
 
+/// <summary>
+/// Handles button clicks for OK / Cancel.
+/// </summary>
 void SettingsDialog::buttonClicked(juce::Button* button) {
     if (button == &okButton_) {
         close(true);
@@ -285,6 +300,9 @@ void SettingsDialog::buttonClicked(juce::Button* button) {
     }
 }
 
+/// <summary>
+/// Handles combo box changes (language/device/etc.).
+/// </summary>
 void SettingsDialog::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
     if (comboBoxThatHasChanged == &languageBox_) {
         auto selectedLanguage = static_cast<LocalizationManager::Language>(languageBox_.getSelectedId() - 1);
@@ -293,12 +311,12 @@ void SettingsDialog::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
         updateUILanguage();
     } else if (comboBoxThatHasChanged == &inputDeviceBox_) {
         workingCopy_.inputDeviceName = inputDeviceBox_.getText();
-        // デバイスに応じた選択肢更新（簡易: 現状は固定候補のまま）
-        // populateSampleRateAndBufferBoxes(); // 必要なら有効化
     }
-    // 他は OK 時に反映
 }
 
+/// <summary>
+/// Updates all labels and tab titles according to current language.
+/// </summary>
 void SettingsDialog::updateUILanguage() {
     titleLabel_.setText(TRANS("settings_title"), juce::dontSendNotification);
     okButton_.setButtonText(TRANS("settings_apply"));
@@ -330,6 +348,9 @@ void SettingsDialog::updateUILanguage() {
     }
 }
 
+/// <summary>
+/// Populates the audio device list combo box.
+/// </summary>
 void SettingsDialog::populateAudioDeviceList() {
     inputDeviceBox_.clear(juce::dontSendNotification);
     if (!audioDeviceManager_) return;
@@ -355,6 +376,9 @@ void SettingsDialog::populateAudioDeviceList() {
     }
 }
 
+/// <summary>
+/// Populates sample rate and buffer size combo boxes.
+/// </summary>
 void SettingsDialog::populateSampleRateAndBufferBoxes() {
     // サンプルレート
     sampleRateBox_.clear(juce::dontSendNotification);
@@ -396,6 +420,9 @@ void SettingsDialog::populateSampleRateAndBufferBoxes() {
     bufferSizeBox_.addListener(this);
 }
 
+/// <summary>
+/// Applies working copy values to output settings structure.
+/// </summary>
 void SettingsDialog::applyTo(AppSettings& settings) const {
     settings.inputDeviceName = inputDeviceBox_.getText();
     settings.sampleRate = sampleRateBox_.getSelectedId();
@@ -410,6 +437,9 @@ void SettingsDialog::applyTo(AppSettings& settings) const {
     settings.heatmapScaleMode = heatmapScaleModeBox_.getSelectedId();
 }
 
+/// <summary>
+/// Closes the dialog and invokes completion callback.
+/// </summary>
 void SettingsDialog::close(bool accepted) {
     if (hasClosed_) {
         return;

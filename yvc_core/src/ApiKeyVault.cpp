@@ -9,6 +9,9 @@
 
 namespace yvc {
 
+/// <summary>
+/// Stores the API key securely using platform facilities (DPAPI on Windows).
+/// </summary>
 void ApiKeyVault::store(const std::string& key) {
 #ifdef _WIN32
     if (key.empty()) {
@@ -29,6 +32,9 @@ void ApiKeyVault::store(const std::string& key) {
 #endif
 }
 
+/// <summary>
+/// Retrieves the stored API key (decrypts when necessary).
+/// </summary>
 std::string ApiKeyVault::retrieve() const {
 #ifdef _WIN32
     if (encrypted_.empty()) {
@@ -49,6 +55,9 @@ std::string ApiKeyVault::retrieve() const {
 #endif
 }
 
+/// <summary>
+/// Returns true if a key is currently stored.
+/// </summary>
 bool ApiKeyVault::hasKey() const {
 #ifdef _WIN32
     return !encrypted_.empty();

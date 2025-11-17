@@ -11,11 +11,18 @@
 
 namespace yvc {
 
-// Lock-free ring buffer for single producer (audio thread) and single consumer (analysis thread)
-// Thread-safe without locks, suitable for real-time audio processing
+/// <summary>
+/// Lock-free ring buffer for single producer (audio thread) and single consumer (analysis thread).
+/// Thread-safe without locks, suitable for real-time audio processing.
+/// </summary>
+/// <typeparam name="T">Element type</typeparam>
 template<typename T>
 class LockFreeRingBuffer {
 public:
+    /// <summary>
+    /// Constructs a lock-free ring buffer with the specified capacity.
+    /// </summary>
+    /// <param name="capacity">Buffer capacity in elements</param>
     explicit LockFreeRingBuffer(size_t capacity)
         : capacity_(capacity + 1)  // +1 to distinguish full from empty
         , buffer_(new T[capacity_])
@@ -31,8 +38,12 @@ public:
     LockFreeRingBuffer(LockFreeRingBuffer&&) = delete;
     LockFreeRingBuffer& operator=(LockFreeRingBuffer&&) = delete;
 
-    // Write samples to the buffer (called by producer/audio thread)
-    // Returns number of samples actually written
+    /// <summary>
+    /// Writes samples to the buffer (called by producer/audio thread).
+    /// </summary>
+    /// <param name="samples">Pointer to samples to write</param>
+    /// <param name="count">Number of samples to write</param>
+    /// <returns>Number of samples actually written</returns>
     size_t write(const T* samples, size_t count) {
         const size_t write_idx = write_index_.load(std::memory_order_relaxed);
         const size_t read_idx = read_index_.load(std::memory_order_acquire);
@@ -56,8 +67,12 @@ public:
         return to_write;
     }
 
-    // Read samples from the buffer (called by consumer/analysis thread)
-    // Returns number of samples actually read
+    /// <summary>
+    /// Reads samples from the buffer (called by consumer/analysis thread).
+    /// </summary>
+    /// <param name="dest">Destination buffer for read samples</param>
+    /// <param name="count">Number of samples to read</param>
+    /// <returns>Number of samples actually read</returns>
     size_t read(T* dest, size_t count) {
         const size_t read_idx = read_index_.load(std::memory_order_relaxed);
         const size_t write_idx = write_index_.load(std::memory_order_acquire);
@@ -81,8 +96,12 @@ public:
         return to_read;
     }
 
-    // Peek samples without consuming (called by consumer)
-    // Returns number of samples actually peeked
+    /// <summary>
+    /// Peeks samples without consuming (called by consumer).
+    /// </summary>
+    /// <param name="dest">Destination buffer for peeked samples</param>
+    /// <param name="count">Number of samples to peek</param>
+    /// <returns>Number of samples actually peeked</returns>
     size_t peek(T* dest, size_t count) const {
         const size_t read_idx = read_index_.load(std::memory_order_relaxed);
         const size_t write_idx = write_index_.load(std::memory_order_acquire);
@@ -105,7 +124,10 @@ public:
         return to_peek;
     }
 
-    // Advance read position without copying data
+    /// <summary>
+    /// Advances read position without copying data.
+    /// </summary>
+    /// <param name="count">Number of samples to skip</param>
     void skip(size_t count) {
         const size_t read_idx = read_index_.load(std::memory_order_relaxed);
         const size_t write_idx = write_index_.load(std::memory_order_acquire);
@@ -116,26 +138,37 @@ public:
         read_index_.store((read_idx + to_skip) % capacity_, std::memory_order_release);
     }
 
-    // Get number of samples available for reading
+    /// <summary>
+    /// Gets number of samples available for reading.
+    /// </summary>
+    /// <returns>Number of available samples</returns>
     size_t getAvailableRead() const {
         const size_t write_idx = write_index_.load(std::memory_order_acquire);
         const size_t read_idx = read_index_.load(std::memory_order_relaxed);
         return getAvailableRead(write_idx, read_idx);
     }
 
-    // Get number of samples available for writing
+    /// <summary>
+    /// Gets number of samples available for writing.
+    /// </summary>
+    /// <returns>Number of available slots</returns>
     size_t getAvailableWrite() const {
         const size_t write_idx = write_index_.load(std::memory_order_relaxed);
         const size_t read_idx = read_index_.load(std::memory_order_acquire);
         return getAvailableWrite(write_idx, read_idx);
     }
 
-    // Get total capacity
+    /// <summary>
+    /// Gets total capacity.
+    /// </summary>
+    /// <returns>Buffer capacity in elements</returns>
     size_t getCapacity() const {
         return capacity_ - 1;  // -1 because we reserve one slot
     }
 
-    // Clear the buffer (should only be called when no concurrent access)
+    /// <summary>
+    /// Clears the buffer (should only be called when no concurrent access).
+    /// </summary>
     void clear() {
         read_index_.store(0, std::memory_order_relaxed);
         write_index_.store(0, std::memory_order_relaxed);
@@ -162,7 +195,9 @@ private:
     alignas(64) std::atomic<size_t> read_index_;   // Cache line alignment
 };
 
-// Type alias for audio samples
+/// <summary>
+/// Type alias for audio sample ring buffer.
+/// </summary>
 using AudioRingBuffer = LockFreeRingBuffer<Sample>;
 
 } // namespace yvc

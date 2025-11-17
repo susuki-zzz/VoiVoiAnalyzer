@@ -10,29 +10,52 @@
 
 namespace yvc {
 
-// Double-buffered metrics bus for thread-safe communication
-// between audio thread (producer) and UI thread (consumer)
+/// <summary>
+/// Double-buffered metrics bus for thread-safe communication
+/// between audio thread (producer) and UI thread (consumer).
+/// </summary>
 class MetricsBus {
 public:
+    /// <summary>
+    /// Constructs a metrics bus.
+    /// </summary>
     MetricsBus();
     
-    // Write metrics from audio thread (producer)
+    /// <summary>
+    /// Writes metrics from audio thread (producer).
+    /// </summary>
+    /// <param name="metrics">Analysis results to write</param>
     void write(const AnalysisResults& metrics);
     
-    // Read latest metrics from UI thread (consumer)
-    // Returns false if no new data available
+    /// <summary>
+    /// Reads latest metrics from UI thread (consumer).
+    /// </summary>
+    /// <param name="metrics">Output parameter for metrics</param>
+    /// <returns>False if no new data available</returns>
     bool read(AnalysisResults& metrics);
     
-    // Get history of metrics (for visualization)
+    /// <summary>
+    /// Gets history of metrics (for visualization).
+    /// </summary>
+    /// <param name="max_count">Maximum number of historical metrics to return</param>
+    /// <returns>Vector of analysis results</returns>
     std::vector<AnalysisResults> getHistory(size_t max_count = 1000) const;
     
-    // Clear all metrics
+    /// <summary>
+    /// Clears all metrics.
+    /// </summary>
     void clear();
 
-    // Check if new metrics are available without consuming them
+    /// <summary>
+    /// Checks if new metrics are available without consuming them.
+    /// </summary>
+    /// <returns>True if new data is available</returns>
     bool hasNewData() const;
 
-    // Get the most recently published metrics without consuming them
+    /// <summary>
+    /// Gets the most recently published metrics without consuming them.
+    /// </summary>
+    /// <returns>Latest analysis results</returns>
     AnalysisResults getLatest() const;
 
 private:

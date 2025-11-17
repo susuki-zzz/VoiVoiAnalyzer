@@ -19,19 +19,28 @@
 
 namespace yvc {
 
+/// <summary>
+///     Processes audio files offline and emits metrics CSV + summary/anomaly JSON.
+/// </summary>
 class FileProcessor {
 public:
     FileProcessor();
-    
-    // Process an audio file and generate analysis
+
+    /// <summary>
+    ///     Process an audio file and write analysis artifacts near output_path.
+    /// </summary>
     bool processFile(const std::string& input_path, const std::string& output_path);
-    
-    // Set processing mode
+
+    /// <summary>
+    ///     Set processing performance mode (light/standard/diagnostic).
+    /// </summary>
     void setMode(PerformanceMode mode) { mode_ = mode; }
-    
-    // Get analysis results
+
+    /// <summary>
+    ///     Access processed per-chunk results.
+    /// </summary>
     const std::vector<AnalysisResults>& getResults() const { return results_; }
-    
+
 private:
     PerformanceMode mode_;
     std::vector<AnalysisResults> results_;
@@ -71,21 +80,8 @@ private:
         double voice_activity_ratio = 0.0;
     };
 
-    struct Anomaly {
-        std::string type;
-        double timestamp = 0.0;
-        std::string description;
-        double score = 0.0;
-    };
-
-    struct HeatmapPoint {
-        size_t index = 0;
-        double timestamp = 0.0;
-        float f0 = 0.0f;
-        float rms = 0.0f;
-        float speech_rate = 0.0f;
-        float cpp = 0.0f;
-    };
+    struct Anomaly { std::string type; double timestamp = 0.0; std::string description; double score = 0.0; };
+    struct HeatmapPoint { size_t index = 0; double timestamp = 0.0; float f0 = 0.0f; float rms = 0.0f; float speech_rate = 0.0f; float cpp = 0.0f; };
 
     // Load WAV audio data into a mono floating point buffer
     bool loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate);

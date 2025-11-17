@@ -12,6 +12,9 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// Application settings data model used by the dialog.
+/// </summary>
 struct AppSettings {
     int sampleRate = 48000;
     int bufferSize = 512;
@@ -26,20 +29,26 @@ struct AppSettings {
     juce::String inputDeviceName; // 追加: 入力デバイス名
 };
 
+/// <summary>
+/// Settings dialog with multiple tabs for audio/recording/display/privacy.
+/// </summary>
 class SettingsDialog : public juce::Component,
                        private juce::Button::Listener,
                        private juce::ComboBox::Listener {
 public:
     using OnClose = std::function<void(bool, const AppSettings&)>;
 
+    /// <summary>
+    /// Shows the settings dialog modally attached to a parent component.
+    /// </summary>
     static void showDialog(const AppSettings& currentSettings, juce::Component* parent, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose);
 
-    // Test helpers: allow constructing and interacting with the dialog in unit tests
+    // Test helpers
     static std::unique_ptr<SettingsDialog> createForTest(const AppSettings& currentSettings, juce::AudioDeviceManager& audioDeviceManager, OnClose onClose) {
         return std::unique_ptr<SettingsDialog>(new SettingsDialog(currentSettings, audioDeviceManager, std::move(onClose)));
     }
 
-    // Lightweight getters/setters for tests (no production code depends on these)
+    // Lightweight getters/setters for tests
     int getSelectedSampleRateId() const { return sampleRateBox_.getSelectedId(); }
     int getSelectedBufferSizeId() const { return bufferSizeBox_.getSelectedId(); }
     int getHeatmapResolutionId() const { return heatmapResolutionBox_.getSelectedId(); }

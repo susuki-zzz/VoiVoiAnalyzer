@@ -20,6 +20,9 @@ namespace yvc::app {
 
 // NOTE: Components here are lightweight painters; business logic lives in yvc_core.
 
+/// <summary>
+/// Types of metric display components.
+/// </summary>
 enum class MetricDisplayType {
     F0Gauge,
     CPP,
@@ -34,14 +37,23 @@ enum class MetricDisplayType {
     SCentroid
 };
 
+/// <summary>
+/// Abstract metric component base.
+/// </summary>
 class MetricComponent : public juce::Component {
 public:
     MetricComponent() = default;
     ~MetricComponent() override = default;
 
+    /// <summary>
+    /// Updates component with latest analysis results.
+    /// </summary>
     virtual void update(const yvc::AnalysisResults& results) = 0;
 };
 
+/// <summary>
+/// F0 + formants gauge component.
+/// </summary>
 class F0GaugeComponent : public MetricComponent {
 public:
     F0GaugeComponent();
@@ -63,6 +75,9 @@ private:
     bool formantsValid_ = false;
 };
 
+/// <summary>
+/// Generic scalar meter component for single value metrics.
+/// </summary>
 class ScalarMeterComponent : public MetricComponent {
 public:
     struct Options {
@@ -88,6 +103,9 @@ private:
     bool isValid_ = true;
 };
 
+/// <summary>
+/// VAD meter component showing activity, speech rate, and pause ratio.
+/// </summary>
 class VadMeterComponent : public MetricComponent {
 public:
     VadMeterComponent();
@@ -101,6 +119,9 @@ private:
     float pauseRatio_ = 0.0f;
 };
 
+/// <summary>
+/// Arranges multiple metric components and updates them with live metrics.
+/// </summary>
 class MetricsDisplayComponent : public juce::Component {
 public:
     MetricsDisplayComponent();
@@ -116,7 +137,9 @@ private:
     std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
 };
 
+/// <summary>
 /// Heatmap with time axis. If a TimelineController is set, X is mapped from its visibleRange.
+/// </summary>
 class HeatmapComponent : public juce::Component, public ITimelineListener {
 public:
     enum class ScaleMode { LinearHz, LogHz, MidiNote };

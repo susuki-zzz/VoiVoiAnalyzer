@@ -10,24 +10,34 @@
 
 namespace yvc {
 
-// Audio sample type
+/// <summary>
+/// Audio sample type.
+/// </summary>
 using Sample = float;
 
-// Sample rate type
+/// <summary>
+/// Sample rate type.
+/// </summary>
 using SampleRate = uint32_t;
 
-// Common sample rates
+/// <summary>
+/// Common sample rates.
+/// </summary>
 constexpr SampleRate SAMPLE_RATE_48K = 48000;
 constexpr SampleRate SAMPLE_RATE_44_1K = 44100;
 
-// Performance modes with latency targets
+/// <summary>
+/// Performance modes with latency targets.
+/// </summary>
 enum class PerformanceMode {
     Mode_Light,      // ≤ 40ms latency
     Mode_Standard,   // ≤ 60ms latency  
     Mode_Diagnostic  // ≤ 80ms latency
 };
 
-// Analysis results structure
+/// <summary>
+/// Analysis results structure containing all metrics.
+/// </summary>
 struct AnalysisResults {
     // F0 (Fundamental Frequency) in Hz
     float f0 = 0.0f;
@@ -68,7 +78,9 @@ struct AnalysisResults {
     double timestamp = 0.0;
 };
 
-// Audio buffer configuration
+/// <summary>
+/// Audio buffer configuration.
+/// </summary>
 struct AudioConfig {
     SampleRate sample_rate = SAMPLE_RATE_48K;
     uint32_t buffer_size = 512;

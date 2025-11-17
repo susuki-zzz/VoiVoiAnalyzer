@@ -11,8 +11,10 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// Constructs the settings component UI and initializes defaults.
+/// </summary>
 SettingsComponent::SettingsComponent() {
-    // Initialize audio backend
     audioBackend_ = yvc::audio::createPlatformBackend();
     
     // Device selection
@@ -218,6 +220,9 @@ SettingsComponent::SettingsComponent() {
 
 SettingsComponent::~SettingsComponent() = default;
 
+/// <summary>
+/// Paints background and section separators.
+/// </summary>
 void SettingsComponent::paint(juce::Graphics& g) {
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
     
@@ -231,6 +236,9 @@ void SettingsComponent::paint(juce::Graphics& g) {
     g.drawLine(20.0f, 450.0f, static_cast<float>(getWidth() - 20), 450.0f);
 }
 
+/// <summary>
+/// Lays out child controls.
+/// </summary>
 void SettingsComponent::resized() {
     auto bounds = getLocalBounds().reduced(20);
     
@@ -280,6 +288,9 @@ void SettingsComponent::resized() {
     cancelButton_.setBounds(buttonRow.removeFromRight(100));
 }
 
+/// <summary>
+/// Populates audio device list from backend.
+/// </summary>
 void SettingsComponent::updateDeviceList() {
     deviceComboBox_.clear();
     availableDevices_.clear();
@@ -313,6 +324,9 @@ void SettingsComponent::updateDeviceList() {
     deviceComboBox_.setEnabled(true);
 }
 
+/// <summary>
+/// Updates sample rate info label based on current selection.
+/// </summary>
 void SettingsComponent::updateSampleRateOptions() {
     // Update info based on selected device
     sampleRateInfoLabel_.setText(
@@ -323,6 +337,9 @@ void SettingsComponent::updateSampleRateOptions() {
     );
 }
 
+/// <summary>
+/// Applies current settings and invokes callback.
+/// </summary>
 void SettingsComponent::applySettings() {
     originalSettings_ = currentSettings_;
     
@@ -335,10 +352,16 @@ void SettingsComponent::applySettings() {
     }
 }
 
+/// <summary>
+/// Returns current settings snapshot.
+/// </summary>
 SettingsComponent::Settings SettingsComponent::getSettings() const {
     return currentSettings_;
 }
 
+/// <summary>
+/// Sets UI to reflect provided settings.
+/// </summary>
 void SettingsComponent::setSettings(const Settings& settings) {
     currentSettings_ = settings;
     

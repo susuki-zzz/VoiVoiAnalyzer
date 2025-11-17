@@ -53,6 +53,10 @@ FileProcessor::FileProcessor()
     : mode_(PerformanceMode::Mode_Diagnostic) {
 }
 
+/// <summary>
+/// Initializes analyzer instances based on supplied audio configuration.
+/// </summary>
+/// <param name="config">The audio configuration used to initialize the analyzers.</param>
 void FileProcessor::initializeAnalyzers(const AudioConfig& config) {
     f0_detector_ = std::make_unique<F0Detector>(config);
     level_analyzer_ = std::make_unique<LevelAnalyzer>(config);
@@ -63,6 +67,12 @@ void FileProcessor::initializeAnalyzers(const AudioConfig& config) {
     vad_analyzer_->reset();
 }
 
+/// <summary>
+/// Processes the input file in 30s chunks with 1s overlap and writes outputs.
+/// </summary>
+/// <param name="input_path">The path to the input WAV file.</param>
+/// <param name="output_path">The base path for output files (results, summary, anomalies, heatmap).</param>
+/// <returns>True if processing is successful, false otherwise.</returns>
 bool FileProcessor::processFile(const std::string& input_path, const std::string& output_path) {
     LOG_INFOF("Processing file: %s", input_path.c_str());
 
@@ -134,6 +144,13 @@ bool FileProcessor::processFile(const std::string& input_path, const std::string
     return csv_written && summary_written && anomaly_written && heatmap_written;
 }
 
+/// <summary>
+/// Processes a single chunk and returns analysis results.
+/// </summary>
+/// <param name="samples">Pointer to the audio sample data.</param>
+/// <param name="num_samples">Number of samples in the chunk.</param>
+/// <param name="timestamp">Timestamp of the chunk in seconds.</param>
+/// <returns>Analysis results for the chunk.</returns>
 AnalysisResults FileProcessor::processChunk(const Sample* samples, size_t num_samples, double timestamp) {
     AnalysisResults results;
     results.timestamp = timestamp;
@@ -170,6 +187,11 @@ AnalysisResults FileProcessor::processChunk(const Sample* samples, size_t num_sa
     return results;
 }
 
+/// <summary>
+/// Writes per-chunk results as CSV.
+/// </summary>
+/// <param name="output_path">The path to the output CSV file.</param>
+/// <returns>True if writing is successful, false otherwise.</returns>
 bool FileProcessor::writeResults(const std::string& output_path) {
     std::filesystem::path base_path(output_path);
     if (base_path.has_parent_path()) {
@@ -210,6 +232,13 @@ bool FileProcessor::writeResults(const std::string& output_path) {
     return true;
 }
 
+/// <summary>
+/// Loads a mono WAV file into float samples, mixing down channels.
+/// </summary>
+/// <param name="input_path">The path to the input WAV file.</param>
+/// <param name="samples">Vector to store the decoded audio samples.</param>
+/// <param name="sample_rate">Sample rate of the audio file.</param>
+/// <returns>True if loading is successful, false otherwise.</returns>
 bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sample>& samples, SampleRate& sample_rate) {
     std::ifstream in(input_path, std::ios::binary);
     if (!in.is_open()) {
@@ -358,6 +387,12 @@ bool FileProcessor::loadWavFile(const std::string& input_path, std::vector<Sampl
     return true;
 }
 
+/// <summary>
+/// Computes summary metrics across processed chunks.
+/// </summary>
+/// <param name="sample_rate">The sample rate of the audio.</param>
+/// <param name="processed_samples">The number of samples processed.</param>
+/// <returns>A structure containing the summary statistics.</returns>
 FileProcessor::SummaryStats FileProcessor::computeSummary(SampleRate sample_rate, size_t processed_samples) const {
     SummaryStats summary;
     summary.sample_rate = sample_rate;
@@ -416,6 +451,12 @@ FileProcessor::SummaryStats FileProcessor::computeSummary(SampleRate sample_rate
     return summary;
 }
 
+/// <summary>
+/// Writes summary JSON next to output CSV.
+/// </summary>
+/// <param name="output_path">The path to the output CSV file.</param>
+/// <param name="summary">The summary statistics to write.</param>
+/// <returns>True if writing is successful, false otherwise.</returns>
 bool FileProcessor::writeSummary(const std::string& output_path, const SummaryStats& summary) const {
     std::filesystem::path base_path(output_path);
     base_path.replace_extension(".summary.json");
@@ -452,6 +493,10 @@ bool FileProcessor::writeSummary(const std::string& output_path, const SummarySt
     return true;
 }
 
+/// <summary>
+/// Scans chunk results to produce a simple anomaly list.
+/// </summary>
+/// <returns>A vector of detected anomalies.</returns>
 std::vector<FileProcessor::Anomaly> FileProcessor::detectAnomalies() const {
     std::vector<Anomaly> anomalies;
     anomalies.reserve(results_.size());
@@ -486,6 +531,12 @@ std::vector<FileProcessor::Anomaly> FileProcessor::detectAnomalies() const {
     return anomalies;
 }
 
+/// <summary>
+/// Writes anomaly list as JSON next to output CSV.
+/// </summary>
+/// <param name="output_path">The path to the output CSV file.</param>
+/// <param name="anomalies">The vector of anomalies to write.</param>
+/// <returns>True if writing is successful, false otherwise.</returns>
 bool FileProcessor::writeAnomalies(const std::string& output_path, const std::vector<Anomaly>& anomalies) const {
     std::filesystem::path base_path(output_path);
     base_path.replace_extension(".anomalies.json");
@@ -523,6 +574,10 @@ bool FileProcessor::writeAnomalies(const std::string& output_path, const std::ve
     return true;
 }
 
+/// <summary>
+/// Builds heatmap points (F0/RMS/SpeechRate/CPP) per chunk.
+/// </summary>
+/// <returns>A vector of heatmap points.</returns>
 std::vector<FileProcessor::HeatmapPoint> FileProcessor::buildHeatmap() const {
     std::vector<HeatmapPoint> heatmap;
     heatmap.reserve(results_.size());
@@ -540,6 +595,12 @@ std::vector<FileProcessor::HeatmapPoint> FileProcessor::buildHeatmap() const {
     return heatmap;
 }
 
+/// <summary>
+/// Writes heatmap CSV next to output CSV.
+/// </summary>
+/// <param name="output_path">The path to the output CSV file.</param>
+/// <param name="heatmap">The vector of heatmap points to write.</param>
+/// <returns>True if writing is successful, false otherwise.</returns>
 bool FileProcessor::writeHeatmap(const std::string& output_path, const std::vector<HeatmapPoint>& heatmap) const {
     std::filesystem::path base_path(output_path);
     base_path.replace_extension(".heatmap.csv");

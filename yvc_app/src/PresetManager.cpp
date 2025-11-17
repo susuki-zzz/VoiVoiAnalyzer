@@ -5,6 +5,9 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// Constructs the preset manager and loads fixed presets.
+/// </summary>
 PresetManager::PresetManager() {
     presets_.push_back(Preset{ 
         "preset_natural_conversation",  // nameKey for localization
@@ -40,6 +43,9 @@ PresetManager::PresetManager() {
     });
 }
 
+/// <summary>
+/// Sets the active preset index if valid and returns resulting preset.
+/// </summary>
 const Preset& PresetManager::setActivePreset(size_t index) {
     if (index < presets_.size())
         activePresetIndex_ = index;

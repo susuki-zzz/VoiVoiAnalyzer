@@ -56,6 +56,9 @@ std::string wideToUtf8(const wchar_t* wide) {
 
 } // namespace
 
+/// <summary>
+/// Concrete AudioDevice using WASAPI capture in shared mode.
+/// </summary>
 class WasapiAudioDevice : public AudioDevice {
 public:
     WasapiAudioDevice(
@@ -83,6 +86,7 @@ public:
         }
     }
 
+    /// <summary>Starts audio capture and the capture thread.</summary>
     void start() override {
         if (running_.load()) {
             return;
@@ -198,6 +202,7 @@ public:
         LOG_INFO("WASAPI audio device started");
     }
 
+    /// <summary>Stops audio capture and joins the capture thread.</summary>
     void stop() override {
         if (!running_.load()) {
             return;
@@ -329,6 +334,9 @@ private:
     uint32_t actual_buffer_size_ = 512;
 };
 
+/// <summary>
+/// WASAPI backend implementation of IAudioBackend.
+/// </summary>
 class WasapiAudioBackend : public IAudioBackend {
 public:
     WasapiAudioBackend() {

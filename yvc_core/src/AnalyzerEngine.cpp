@@ -3,11 +3,17 @@
 
 namespace yvc {
 namespace {
+/// <summary>
+/// Applies performance mode defaults to the provided audio config.
+/// </summary>
 AudioConfig prepareConfig(const AudioConfig& config, PerformanceMode mode) {
     return PerformanceModeConfig::applyToConfig(config, mode);
 }
 } // namespace
 
+/// <summary>
+/// Constructs the analyzer engine and initializes analyzers with the requested performance mode.
+/// </summary>
 AnalyzerEngine::AnalyzerEngine(const AudioConfig& config, MetricsBus& bus, PerformanceMode mode)
     : audio_config_(prepareConfig(config, mode)),
       audio_buffer_(audio_config_),
@@ -24,6 +30,9 @@ AnalyzerEngine::AnalyzerEngine(const AudioConfig& config, MetricsBus& bus, Perfo
       hop_size_(performance_config_.getHopSize()) {
 }
 
+/// <summary>
+/// Pushes PCM into internal buffer and runs analyzers on hop-sized windows, writing results to MetricsBus.
+/// </summary>
 void AnalyzerEngine::process(const Sample* samples, size_t num_samples, double timestamp) {
     if (samples == nullptr || num_samples == 0) {
         return;
@@ -105,6 +114,9 @@ void AnalyzerEngine::process(const Sample* samples, size_t num_samples, double t
     }
 }
 
+/// <summary>
+/// Changes performance mode and rebuilds analyzers with the new configuration.
+/// </summary>
 void AnalyzerEngine::setPerformanceMode(PerformanceMode mode) {
     if (audio_config_.mode == mode) {
         return;
@@ -124,6 +136,9 @@ void AnalyzerEngine::setPerformanceMode(PerformanceMode mode) {
     rebuildAnalyzers();
 }
 
+/// <summary>
+/// Recreates analyzer instances to match current audio configuration.
+/// </summary>
 void AnalyzerEngine::rebuildAnalyzers() {
     f0_detector_ = F0Detector(audio_config_);
     level_analyzer_ = LevelAnalyzer(audio_config_);

@@ -108,17 +108,7 @@ void HeatmapComponent::appendSample(const yvc::AnalysisResults& results) {
     f0History_.push_back(results.f0_valid ? results.f0 : 0.0f);
     f0ConfHistory_.push_back(results.f0_valid ? juce::jlimit(0.0f,1.0f, results.f0_confidence) : 0.0f);
     rmsHistory_.push_back(results.rms);
-    if (results.formants_valid) {
-        f1History_.push_back(results.f1);
-        f2History_.push_back(results.f2);
-        f3History_.push_back(results.f3);
-        f4History_.push_back(results.f4);
-    } else {
-        f1History_.push_back(0.0f);
-        f2History_.push_back(0.0f);
-        f3History_.push_back(0.0f);
-        f4History_.push_back(0.0f);
-    }
+    if (results.formants_valid) { f1History_.push_back(results.f1); f2History_.push_back(results.f2); f3History_.push_back(results.f3); f4History_.push_back(results.f4); } else { f1History_.push_back(0.0f); f2History_.push_back(0.0f); f3History_.push_back(0.0f); f4History_.push_back(0.0f); }
     auto trim = [this](auto& dq){ while ((int)dq.size() > maxSamples_) dq.pop_front(); };
     trim(timeHistory_); trim(f0History_); trim(f0ConfHistory_); trim(rmsHistory_); trim(f1History_); trim(f2History_); trim(f3History_); trim(f4History_);
     repaint();

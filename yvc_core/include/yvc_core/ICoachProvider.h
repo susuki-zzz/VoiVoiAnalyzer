@@ -9,10 +9,14 @@
 
 namespace yvc {
 
-// Summary snapshot containing aggregated metrics only (no raw audio)
-// This is what gets sent to AI coach services
+/// <summary>
+/// Summary snapshot containing aggregated metrics only (no raw audio).
+/// This is what gets sent to AI coach services for privacy protection.
+/// </summary>
 struct SummarySnapshot {
-    // Statistical aggregates over analysis window
+    /// <summary>
+    /// Statistical aggregates over analysis window.
+    /// </summary>
     struct Stats {
         float mean = 0.0f;
         float std_dev = 0.0f;
@@ -41,28 +45,44 @@ struct SummarySnapshot {
     float target_f0_max = 0.0f;
 };
 
-// AI Coach provider interface
-// Privacy: Only metrics are sent, NEVER raw audio data
+/// <summary>
+/// AI Coach provider interface.
+/// Privacy guarantee: Only metrics are sent, NEVER raw audio data.
+/// </summary>
 class ICoachProvider {
 public:
     virtual ~ICoachProvider() = default;
     
-    // Set API key for the coach service
-    // Key should be stored securely (e.g., DPAPI on Windows)
+    /// <summary>
+    /// Sets API key for the coach service.
+    /// Key should be stored securely (e.g., DPAPI on Windows).
+    /// </summary>
+    /// <param name="key">API key string</param>
     virtual void setApiKey(const std::string& key) = 0;
     
-    // Get advice based on metrics summary
-    // @param snapshot: Aggregated metrics (NO audio data)
-    // @return: Advice text from coach
+    /// <summary>
+    /// Gets advice based on metrics summary.
+    /// </summary>
+    /// <param name="snapshot">Aggregated metrics (NO audio data)</param>
+    /// <returns>Advice text from coach</returns>
     virtual std::string advise(const SummarySnapshot& snapshot) = 0;
     
-    // Check if coach is available/configured
+    /// <summary>
+    /// Checks if coach is available/configured.
+    /// </summary>
+    /// <returns>True if available, false otherwise</returns>
     virtual bool isAvailable() const = 0;
     
-    // Get provider name (e.g., "OpenAI", "Local")
+    /// <summary>
+    /// Gets provider name (e.g., "OpenAI", "Local").
+    /// </summary>
+    /// <returns>Provider name as C-string</returns>
     virtual const char* name() const = 0;
     
-    // Set minimum interval between advice requests (rate limiting)
+    /// <summary>
+    /// Sets minimum interval between advice requests (rate limiting).
+    /// </summary>
+    /// <param name="ms">Minimum interval in milliseconds</param>
     virtual void setMinIntervalMs(int ms) = 0;
 };
 

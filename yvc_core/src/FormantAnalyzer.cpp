@@ -17,6 +17,12 @@ FormantAnalyzer::FormantAnalyzer(const AudioConfig& config)
     : config_(config) {
 }
 
+/// <summary>
+/// Applies pre-emphasis (first-order high-pass) prior to LPC.
+/// </summary>
+/// <param name="in">Input samples.</param>
+/// <param name="n">Number of samples.</param>
+/// <param name="out">Output array for pre-emphasized samples.</param>
 void FormantAnalyzer::applyPreEmphasis(const Sample* in, size_t n, float* out) {
     const float coef = 0.97f;
     if (n == 0) return;
@@ -25,6 +31,11 @@ void FormantAnalyzer::applyPreEmphasis(const Sample* in, size_t n, float* out) {
         out[i] = in[i] - coef * in[i - 1];
 }
 
+/// <summary>
+/// Applies Hamming window to reduce spectral leakage.
+/// </summary>
+/// <param name="data">Data array to apply window to.</param>
+/// <param name="n">Number of samples.</param>
 void FormantAnalyzer::applyWindow(float* data, size_t n) {
     if (n < 2) return;
     for (size_t i = 0; i < n; ++i) {
@@ -33,6 +44,12 @@ void FormantAnalyzer::applyWindow(float* data, size_t n) {
     }
 }
 
+/// <summary>
+/// Computes autocorrelation sequence up to LPC order.
+/// </summary>
+/// <param name="data">Input data array.</param>
+/// <param name="n">Number of samples in data.</param>
+/// <param name="order">LPC order.</param>
 void FormantAnalyzer::computeAutocorrelation(const float* data, size_t n, size_t order) {
     autocorr_.assign(order + 1, 0.0f);
     for (size_t lag = 0; lag <= order; ++lag) {
@@ -43,6 +60,10 @@ void FormantAnalyzer::computeAutocorrelation(const float* data, size_t n, size_t
     }
 }
 
+/// <summary>
+/// Levinson-Durbin recursion to derive LPC coefficients and reflection coeffs.
+/// Returns false if unstable or degenerate.
+/// </summary>
 bool FormantAnalyzer::levinsonDurbin(size_t order) {
     lpc_coeffs_.assign(order + 1, 0.0f);
     std::vector<float> refl(order + 1, 0.0f);
@@ -73,6 +94,9 @@ bool FormantAnalyzer::levinsonDurbin(size_t order) {
     return true;
 }
 
+/// <summary>
+/// Estimates formant peaks by evaluating LPC envelope on a dense frequency grid.
+/// </summary>
 std::vector<float> FormantAnalyzer::rootsToFormants(size_t order) {
     const size_t fftN = 1024;
     std::vector<float> mag(fftN, 0.0f);
@@ -105,6 +129,9 @@ std::vector<float> FormantAnalyzer::rootsToFormants(size_t order) {
     return formants;
 }
 
+/// <summary>
+/// Main analysis entry: produces up to 4 formant frequency estimates.
+/// </summary>
 FormantAnalyzer::FormantResults FormantAnalyzer::analyze(const Sample* samples, size_t num_samples) {
     FormantResults out;
     if (samples == nullptr || num_samples < 256)

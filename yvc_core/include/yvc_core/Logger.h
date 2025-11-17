@@ -17,7 +17,9 @@
 
 namespace yvc {
 
-// Log levels (ordered by severity)
+/// <summary>
+/// Log levels (ordered by severity).
+/// </summary>
 enum class LogLevel {
     LOGLV_TRACE = 0,  // Detailed trace for deep debugging
     LOGLV_DEBUG = 1,  // Debug information
@@ -28,10 +30,16 @@ enum class LogLevel {
     LOGLV_OFF = 6     // Logging disabled
 };
 
-// Convert log level to string
+/// <summary>
+/// Converts log level to string.
+/// </summary>
+/// <param name="level">Log level</param>
+/// <returns>String representation of log level</returns>
 const char* logLevelToString(LogLevel level);
 
-// Logger configuration
+/// <summary>
+/// Logger configuration structure.
+/// </summary>
 struct LoggerConfig {
     LogLevel minLevel = LogLevel::LOGLV_INFO;
     bool enableConsole = true;
@@ -47,29 +55,56 @@ struct LoggerConfig {
     bool allowAudioDataLogging = false;  // MUST be false in production
 };
 
-// Logger class (Singleton pattern)
+/// <summary>
+/// Thread-safe logger singleton for debugging and diagnostics.
+/// </summary>
 class Logger {
 public:
-    // Get singleton instance
+    /// <summary>
+    /// Gets singleton instance.
+    /// </summary>
+    /// <returns>Reference to logger instance</returns>
     static Logger& getInstance();
     
-    // Configure logger
+    /// <summary>
+    /// Configures logger with specified settings.
+    /// </summary>
+    /// <param name="config">Logger configuration</param>
     void configure(const LoggerConfig& config);
     
-    // Get current configuration
+    /// <summary>
+    /// Gets current configuration.
+    /// </summary>
+    /// <returns>Reference to current logger configuration</returns>
     const LoggerConfig& getConfig() const { return config_; }
     
-    // Set minimum log level at runtime (thread-safe)
+    /// <summary>
+    /// Sets minimum log level at runtime (thread-safe).
+    /// </summary>
+    /// <param name="level">Minimum log level</param>
     void setMinLevel(LogLevel level);
     
-    // Check if a log level would be logged (thread-safe)
+    /// <summary>
+    /// Checks if a log level would be logged (thread-safe).
+    /// </summary>
+    /// <param name="level">Log level to check</param>
+    /// <returns>True if level would be logged</returns>
     bool shouldLog(LogLevel level) const;
     
-    // Log a message
+    /// <summary>
+    /// Logs a message.
+    /// </summary>
+    /// <param name="level">Log level</param>
+    /// <param name="file">Source file name</param>
+    /// <param name="line">Line number</param>
+    /// <param name="function">Function name</param>
+    /// <param name="message">Log message</param>
     void log(LogLevel level, const char* file, int line, const char* function, 
              const std::string& message);
     
-    // Formatted logging (variadic template version for C++20)
+    /// <summary>
+    /// Formatted logging (variadic template version for C++20).
+    /// </summary>
     template<typename... Args>
     void logf(LogLevel level, const char* file, int line, const char* function,
               const char* format, Args&&... args) {
@@ -88,16 +123,22 @@ public:
         log(level, file, line, function, std::string(buffer.data()));
     }
     
-    // Overload for no-argument case
+    /// <summary>
+    /// Formatted logging overload for no-argument case.
+    /// </summary>
     void logf(LogLevel level, const char* file, int line, const char* function,
               const char* message) {
         log(level, file, line, function, std::string(message));
     }
     
-    // Flush all pending log messages
+    /// <summary>
+    /// Flushes all pending log messages.
+    /// </summary>
     void flush();
     
-    // Close logger (call before application exit)
+    /// <summary>
+    /// Closes logger (call before application exit).
+    /// </summary>
     void shutdown();
     
     // Delete copy constructor and assignment operator
@@ -183,10 +224,21 @@ private:
         yvc::Logger::getInstance().logf(yvc::LogLevel::LOGLV_FATAL, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__); \
     } while(0)
 
-// Scoped timer for performance profiling
+/// <summary>
+/// Scoped timer for performance profiling.
+/// </summary>
 class ScopedTimer {
 public:
+    /// <summary>
+    /// Constructs a scoped timer.
+    /// </summary>
+    /// <param name="name">Timer name</param>
+    /// <param name="level">Log level (default: DEBUG)</param>
     ScopedTimer(const char* name, LogLevel level = LogLevel::LOGLV_DEBUG);
+
+    /// <summary>
+    /// Destructor logs elapsed time.
+    /// </summary>
     ~ScopedTimer();
     
 private:
@@ -199,12 +251,28 @@ private:
 #define LOG_SCOPE_TIMER(name) yvc::ScopedTimer _scoped_timer_##__LINE__(name)
 #define LOG_SCOPE_TIMER_TRACE(name) yvc::ScopedTimer _scoped_timer_##__LINE__(name, yvc::LogLevel::LOGLV_TRACE)
 
-// Stream-style logging helper
+/// <summary>
+/// Stream-style logging helper.
+/// </summary>
 class LogStream {
 public:
+    /// <summary>
+    /// Constructs a log stream.
+    /// </summary>
+    /// <param name="level">Log level</param>
+    /// <param name="file">Source file</param>
+    /// <param name="line">Line number</param>
+    /// <param name="function">Function name</param>
     LogStream(LogLevel level, const char* file, int line, const char* function);
+
+    /// <summary>
+    /// Destructor writes accumulated message to log.
+    /// </summary>
     ~LogStream();
     
+    /// <summary>
+    /// Stream insertion operator.
+    /// </summary>
     template<typename T>
     LogStream& operator<<(const T& value) {
         stream_ << value;

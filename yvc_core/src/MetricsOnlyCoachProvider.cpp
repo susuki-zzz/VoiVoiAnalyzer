@@ -4,12 +4,22 @@
 
 namespace yvc {
 
+/// <summary>
+/// Constructs a metrics-only coach provider (no external state).
+/// </summary>
 MetricsOnlyCoachProvider::MetricsOnlyCoachProvider() = default;
 
+/// <summary>
+/// Stores API key in the secure vault (DPAPI on Windows).
+/// </summary>
 void MetricsOnlyCoachProvider::setApiKey(const std::string& key) {
     vault_.store(key);
 }
 
+/// <summary>
+/// Returns a short textual advice assembled purely from provided metrics snapshot.
+/// Applies simple cooldown throttling to avoid hammering provider.
+/// </summary>
 std::string MetricsOnlyCoachProvider::advise(const SummarySnapshot& snapshot) {
     if (!isAvailable()) {
         return "Coach unavailable: missing API key";
@@ -33,14 +43,23 @@ std::string MetricsOnlyCoachProvider::advise(const SummarySnapshot& snapshot) {
     return oss.str();
 }
 
+/// <summary>
+/// Provider considered available iff an API key exists in the vault.
+/// </summary>
 bool MetricsOnlyCoachProvider::isAvailable() const {
     return vault_.hasKey();
 }
 
+/// <summary>
+/// Display name for this provider instance.
+/// </summary>
 const char* MetricsOnlyCoachProvider::name() const {
     return "MetricsOnly";
 }
 
+/// <summary>
+/// Sets minimal duration between subsequent advise() calls.
+/// </summary>
 void MetricsOnlyCoachProvider::setMinIntervalMs(int ms) {
     if (ms <= 0) {
         min_interval_ = std::chrono::milliseconds(0);

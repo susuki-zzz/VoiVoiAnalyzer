@@ -31,20 +31,44 @@ namespace yvc::app {
 struct AppSettings;
 class SettingsDialog;
 
+/// <summary>
+/// Main application component that hosts UI and coordinates audio + metrics.
+/// </summary>
 class MainComponent : public juce::Component,
                       private juce::Timer,
                       private juce::ComboBox::Listener,
                       private juce::Button::Listener {
 public:
+    /// <summary>
+    /// Constructs the main component.
+    /// </summary>
+    /// <param name="metricsBus">Reference to shared metrics bus</param>
+    /// <param name="audioDeviceManager">JUCE audio device manager</param>
     explicit MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager);
+
+    /// <summary>
+    /// Destructor.
+    /// </summary>
     ~MainComponent() override;
 
+    /// <summary>
+    /// Paints the UI.
+    /// </summary>
     void paint(juce::Graphics& g) override;
+
+    /// <summary>
+    /// Lays out child components.
+    /// </summary>
     void resized() override;
 
 private:
+    // juce::Timer
     void timerCallback() override;
+
+    // juce::ComboBox::Listener
     void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
+
+    // juce::Button::Listener
     void buttonClicked(juce::Button* button) override;
 
     void refreshMetrics();

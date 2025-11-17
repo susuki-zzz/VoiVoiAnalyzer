@@ -17,14 +17,36 @@ namespace yvc::app {
 namespace test { class AdvancedHeatmapComponentTestPeer; class ComparativeMetricsComponentTestPeer; class SpectrumAnalyzerComponentTestPeer; }
 
 // ================= AdvancedHeatmapComponent =================
+/// <summary>
+/// High-performance heatmap component with zoom/scrub and export support.
+/// Samples are appended and displayed in a fixed-size deque (oldest evicted).
+/// Shift+Drag performs zoom range selection; mouse wheel zooms around cursor.
+/// </summary>
 class AdvancedHeatmapComponent : public juce::Component {
 public:
     explicit AdvancedHeatmapComponent(const juce::String& title);
+    /// <summary>Runtime configuration for value scaling and colours.</summary>
     struct HeatmapConfig { float minValue = 0.0f; float maxValue = 100.0f; juce::String unit = ""; juce::Colour lowColour = juce::Colours::blue; juce::Colour highColour = juce::Colours::red; bool showGrid = true; bool showTimestamps = true; int maxSamples = 300; };
-    void setConfig(const HeatmapConfig& config); void appendSample(float value, double timestamp); void clear();
-    void setZoomRange(double startTime, double endTime); void setPlayheadPosition(double timestamp); void setResolutionMode(bool highResolution);
-    juce::Image createExportImage(int width, int height, bool includeAnnotations = true); bool exportToPNG(const juce::File& file, int width = 1920, int height = 1080);
-    std::function<void(double,double)> onZoomRangeChanged; std::function<void(double)> onScrubPositionChanged;
+    /// <summary>Applies a new configuration (repaints).</summary>
+    void setConfig(const HeatmapConfig& config); 
+    /// <summary>Appends a single sample (evicts oldest if beyond maxSamples).</summary>
+    void appendSample(float value, double timestamp); 
+    /// <summary>Clears all samples.</summary>
+    void clear();
+    /// <summary>Sets explicit zoom range in seconds.</summary>
+    void setZoomRange(double startTime, double endTime); 
+    /// <summary>Sets playhead marker position.</summary>
+    void setPlayheadPosition(double timestamp); 
+    /// <summary>Switch resolution mode (affects visual granularity).</summary>
+    void setResolutionMode(bool highResolution);
+    /// <summary>Creates an image export of the heatmap area.</summary>
+    juce::Image createExportImage(int width, int height, bool includeAnnotations = true); 
+    /// <summary>Exports heatmap snapshot to PNG.</summary>
+    bool exportToPNG(const juce::File& file, int width = 1920, int height = 1080);
+    /// <summary>Callback fired when zoom range changes.</summary>
+    std::function<void(double,double)> onZoomRangeChanged; 
+    /// <summary>Callback fired on scrub (click/drag) position changes.</summary>
+    std::function<void(double)> onScrubPositionChanged;
     void paint(juce::Graphics& g) override; void resized() override; void mouseDown(const juce::MouseEvent& e) override; void mouseDrag(const juce::MouseEvent& e) override; void mouseWheelMove(const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
 protected:
     struct Sample { float value = 0.0f; double timestamp = 0.0; bool valid = true; };
@@ -36,7 +58,8 @@ protected:
     friend class test::AdvancedHeatmapComponentTestPeer;
 };
 
-inline AdvancedHeatmapComponent::AdvancedHeatmapComponent(const juce::String& t):title_(t){ setConfig(HeatmapConfig{});} inline void AdvancedHeatmapComponent::setConfig(const HeatmapConfig& c){ config_=c; repaint(); }
+inline AdvancedHeatmapComponent::AdvancedHeatmapComponent(const juce::String& t):title_(t){ setConfig(HeatmapConfig{});} 
+inline void AdvancedHeatmapComponent::setConfig(const HeatmapConfig& c){ config_=c; repaint(); }
 inline void AdvancedHeatmapComponent::appendSample(float v,double ts){ samples_.push_back(Sample{v,ts,std::isfinite(v)}); while((int)samples_.size()>config_.maxSamples) samples_.pop_front(); if(!samples_.empty()){ double latest=samples_.back().timestamp; if(latest>zoomEnd_){ double span=zoomEnd_-zoomStart_; if(span<=0) span=1.0; zoomEnd_=latest; zoomStart_=zoomEnd_-span; if(onZoomRangeChanged) onZoomRangeChanged(zoomStart_,zoomEnd_);} } repaint(); }
 inline void AdvancedHeatmapComponent::clear(){ samples_.clear(); repaint(); }
 inline void AdvancedHeatmapComponent::setZoomRange(double s,double e){ zoomStart_=s; zoomEnd_=e; repaint(); }
@@ -57,13 +80,30 @@ inline void AdvancedHeatmapComponent::drawZoomOverlay(juce::Graphics& g){ g.setC
 inline juce::Colour AdvancedHeatmapComponent::getValueColour(float v) const{ float nv=juce::jlimit(0.0f,1.0f,(v-config_.minValue)/(config_.maxValue-config_.minValue)); return config_.lowColour.interpolatedWith(config_.highColour,nv);} inline double AdvancedHeatmapComponent::timestampToX(double ts, juce::Rectangle<int> area) const { if(zoomEnd_<=zoomStart_) return area.getX(); return area.getX()+(ts-zoomStart_)*(area.getWidth()/(zoomEnd_-zoomStart_)); } inline double AdvancedHeatmapComponent::xToTimestamp(int x, juce::Rectangle<int> area) const { return zoomStart_ + (double(x-area.getX())/double(area.getWidth()))*(zoomEnd_-zoomStart_); }
 
 // ================= ComparativeMetricsComponent =================
+/// <summary>
+/// Plots selected metric over time for multiple recorded sessions for comparison.
+/// Each session draws as a polyline over the chosen time range.
+/// </summary>
 class ComparativeMetricsComponent : public juce::Component, public ITimelineListener {
 public:
     ComparativeMetricsComponent();
+    /// <summary>Session container for comparison plotting.</summary>
     struct SessionData { juce::String name; juce::Colour colour; std::vector<yvc::AnalysisResults> data; float alpha = 1.0f; bool visible = true; };
+    /// <summary>Adds a new session.</summary>
     void addSession(const juce::String& name, const std::vector<yvc::AnalysisResults>& data, juce::Colour colour = juce::Colours::white);
-    void removeSession(const juce::String& name); void setSessionVisibility(const juce::String& name,bool visible); void setSessionAlpha(const juce::String& name,float alpha); void clearAllSessions();
-    void setDisplayedMetric(const juce::String& metricName); void setTimeRange(double startTime,double endTime);
+    /// <summary>Removes a session by name.</summary>
+    void removeSession(const juce::String& name); 
+    /// <summary>Sets visibility for a named session.</summary>
+    void setSessionVisibility(const juce::String& name,bool visible); 
+    /// <summary>Sets alpha blending value for a named session.</summary>
+    void setSessionAlpha(const juce::String& name,float alpha); 
+    /// <summary>Clears all sessions.</summary>
+    void clearAllSessions();
+    /// <summary>Changes the displayed metric key (e.g. "f0", "rms").</summary>
+    void setDisplayedMetric(const juce::String& metricName); 
+    /// <summary>Sets explicit time range for rendering.</summary>
+    void setTimeRange(double startTime,double endTime);
+    /// <summary>Assigns a timeline controller; auto-updates range.</summary>
     void setTimelineController(TimelineController* ctl) { timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
     void timelineRangeChanged(const juce::Range<double>& r) override { setTimeRange(r.getStart(), r.getEnd()); }
     void timelinePlayheadChanged(double) override {}
@@ -89,9 +129,27 @@ inline juce::String ComparativeMetricsComponent::getMetricUnit(const juce::Strin
 inline std::pair<float,float> ComparativeMetricsComponent::getMetricRange(const juce::String& m){ if(m=="f0") return {50.0f,500.0f}; if(m=="rms") return {0.0f,1.0f}; if(m=="cpp") return {-10.0f,30.0f}; if(m=="hnr") return {0.0f,40.0f}; if(m=="speech_rate") return {0.0f,8.0f}; if(m=="pause_ratio") return {0.0f,1.0f}; if(m=="spectral_tilt") return {-24.0f,12.0f}; return {0.0f,100.0f}; }
 
 // ================= SpectrumAnalyzerComponent =================
+/// <summary>
+/// Spectrum analyzer widget with F0 overlay and simple peak hold.
+/// Displays log-frequency axis, magnitude (dB scaled) and optional harmonics.
+/// </summary>
 class SpectrumAnalyzerComponent : public juce::Component, public juce::Timer {
 public:
-    SpectrumAnalyzerComponent(); void setFFTSize(int fftSize); void setSampleRate(float sampleRate); void setFrequencyRange(float minFreq,float maxFreq); void setPeakHoldEnabled(bool enabled); void setHarmonicsOverlayEnabled(bool enabled); void updateSpectrum(const float* magnitudeSpectrum,int spectrumSize); void updateF0(float f0,bool valid);
+    SpectrumAnalyzerComponent(); 
+    /// <summary>Sets FFT size; reallocates buffers.</summary>
+    void setFFTSize(int fftSize); 
+    /// <summary>Sets sample rate for frequency mapping.</summary>
+    void setSampleRate(float sampleRate); 
+    /// <summary>Sets frequency display range.</summary>
+    void setFrequencyRange(float minFreq,float maxFreq); 
+    /// <summary>Enables peak hold curve overlay.</summary>
+    void setPeakHoldEnabled(bool enabled); 
+    /// <summary>Enables harmonic marker overlay lines.</summary>
+    void setHarmonicsOverlayEnabled(bool enabled); 
+    /// <summary>Updates magnitude spectrum (expects size >= fftSize_/2+1).</summary>
+    void updateSpectrum(const float* magnitudeSpectrum,int spectrumSize); 
+    /// <summary>Updates current F0 marker and validity.</summary>
+    void updateF0(float f0,bool valid);
     int getFFTSize() const { return fftSize_; } float getCurrentF0() const { return currentF0_; } bool isF0Valid() const { return f0Valid_; } bool isHarmonicsOverlayEnabled() const { return harmonicsOverlayEnabled_; }
     float mapFrequencyToXPublic(float freq, juce::Rectangle<int> area) const { return frequencyToX(freq,area);} int mapFrequencyToBinPublic(float freq) const { return frequencyToBin(freq);} float mapMagnitudeToYPublic(float m, juce::Rectangle<int> area) const { return magnitudeToY(m,area);} void paint(juce::Graphics& g) override; void resized() override; void timerCallback() override;
 protected:

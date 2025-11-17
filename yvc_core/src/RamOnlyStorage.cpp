@@ -4,6 +4,9 @@
 
 namespace yvc {
 
+/// <summary>
+/// Appends raw sample block into in-memory store.
+/// </summary>
 void RamOnlyStorage::append(const Sample* samples, size_t count) {
     if (!samples || count == 0) {
         return;
@@ -11,14 +14,23 @@ void RamOnlyStorage::append(const Sample* samples, size_t count) {
     storage_.insert(storage_.end(), samples, samples + count);
 }
 
+/// <summary>
+/// Appends vector of samples into storage.
+/// </summary>
 void RamOnlyStorage::append(const std::vector<Sample>& samples) {
     storage_.insert(storage_.end(), samples.begin(), samples.end());
 }
 
+/// <summary>
+/// Clears all stored audio (privacy safeguard).
+/// </summary>
 void RamOnlyStorage::clear() {
     storage_.clear();
 }
 
+/// <summary>
+/// Disk flush is intentionally disabled; returns false and removes any existing file path.
+/// </summary>
 bool RamOnlyStorage::flushToDisk(const std::string& path) const {
     if (path.empty()) {
         return false;

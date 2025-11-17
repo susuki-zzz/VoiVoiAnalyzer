@@ -14,10 +14,13 @@ VADAnalyzer::VADAnalyzer(const AudioConfig& config)
     : config_(config) {
 }
 
+/// <summary>
+/// Analyzes frame for voice activity; updates speech rate and pause ratio statistics.
+/// </summary>
 VADAnalyzer::VADResults VADAnalyzer::analyze(const Sample* samples, size_t num_samples, float rms) {
     VADResults results;
 
-    (void)samples;
+    (void)samples;  // current trivial VAD uses RMS only
 
     // Detect voice activity based on RMS level
     results.voice_active = detectVoiceActivity(rms);
@@ -54,6 +57,9 @@ VADAnalyzer::VADResults VADAnalyzer::analyze(const Sample* samples, size_t num_s
     return results;
 }
 
+/// <summary>
+/// Resets internal time counters and history.
+/// </summary>
 void VADAnalyzer::reset() {
     syllable_times_.clear();
     previous_voice_active_ = false;
@@ -61,10 +67,16 @@ void VADAnalyzer::reset() {
     speech_time_ = 0.0;
 }
 
+/// <summary>
+/// Simple RMS threshold based VAD decision.
+/// </summary>
 bool VADAnalyzer::detectVoiceActivity(float rms) {
     return rms > vad_threshold_;
 }
 
+/// <summary>
+/// Estimates speech rate as transitions per second over recent window.
+/// </summary>
 float VADAnalyzer::estimateSpeechRate() {
     if (syllable_times_.size() < 2) {
         return 0.0f;

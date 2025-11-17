@@ -8,6 +8,9 @@ namespace yvc::app {
 
 WaveformComponent::WaveformComponent(){ setSize(400,120); }
 
+/// <summary>
+/// Sets waveform samples and computes auto vertical range.
+/// </summary>
 void WaveformComponent::setSamples(const std::vector<float>& samples, float sampleRate){
     samples_ = samples; sampleRate_ = sampleRate;
     if (samples_.empty()) { minY_=-1.0f; maxY_=1.0f; repaint(); return; }
@@ -16,6 +19,9 @@ void WaveformComponent::setSamples(const std::vector<float>& samples, float samp
     minY_ = mn; maxY_ = mx; if (std::fabs(maxY_-minY_)<1e-6f) maxY_ = minY_ + 1.0f; repaint();
 }
 
+/// <summary>
+/// Paints the waveform using current sample array.
+/// </summary>
 void WaveformComponent::paint(juce::Graphics& g){
     auto b = getLocalBounds().toFloat();
     g.setColour(juce::Colours::black); g.fillRect(b);

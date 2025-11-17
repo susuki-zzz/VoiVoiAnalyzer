@@ -17,6 +17,9 @@ SpectralAnalyzer::SpectralAnalyzer(const AudioConfig& config)
     magnitude_spectrum_.resize(config_.fft_size / 2 + 1);
 }
 
+/// <summary>
+/// Performs FFT, derives magnitude spectrum then computes tilt and /s/ metrics.
+/// </summary>
 SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* samples, size_t num_samples) {
     SpectralResults results;
 
@@ -56,6 +59,9 @@ SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* sample
     return results;
 }
 
+/// <summary>
+/// Linear regression slope over log-frequency/log-magnitude for tilt (dB/octave surrogate).
+/// </summary>
 float SpectralAnalyzer::computeSpectralTilt(const float* spectrum, size_t spectrum_size) {
     // Compute spectral tilt using linear regression on log-magnitude spectrum
     std::vector<float> log_freq(spectrum_size);
@@ -90,6 +96,9 @@ float SpectralAnalyzer::computeSpectralTilt(const float* spectrum, size_t spectr
     return slope;  // dB/octave
 }
 
+/// <summary>
+/// Detects /s/ presence and centroid via energy ratio in 4–8 kHz band.
+/// </summary>
 SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyzeSibilant(const float* spectrum, size_t spectrum_size) {
     SpectralResults results;
 

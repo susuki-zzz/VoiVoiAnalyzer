@@ -6,6 +6,9 @@
 #include <iostream>
 #include <string>
 
+/// <summary>
+/// Prints CLI usage information for the offline analyzer.
+/// </summary>
 void printUsage() {
     std::cout << "VoiVoi Offline Analyzer v0.1.0" << std::endl;
     std::cout << "Usage: yvc_offline [options] <input_file> <output_file>" << std::endl;
@@ -21,6 +24,9 @@ void printUsage() {
     std::cout << "License: GPLv3" << std::endl;
 }
 
+/// <summary>
+/// Program entry point for the offline analyzer CLI.
+/// </summary>
 int main(int argc, char* argv[]) {
     // Initialize logger for offline tool
     auto& logger = yvc::Logger::getInstance();

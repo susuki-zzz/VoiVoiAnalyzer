@@ -17,11 +17,13 @@ constexpr double kFpsEvaluationWindowMs = 2000.0;
 constexpr double kDegradeThreshold = 0.82;
 }
 
+/// <summary>
+/// Constructs the main component, initializes audio, timeline, and UI elements.
+/// </summary>
 MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager)
     : metricsBus_(metricsBus)
     , audioDeviceManager_(audioDeviceManager) {
     setOpaque(true);
-    
     // Initialize localization
     auto& locManager = LocalizationManager::getInstance();
     locManager.loadLanguagePreference();
@@ -148,6 +150,9 @@ MainComponent::MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManag
     startAudioProcessing();
 }
 
+/// <summary>
+/// Destructor stops timers and audio processing, removes listeners.
+/// </summary>
 MainComponent::~MainComponent() {
     stopTimer();
     stopAudioProcessing();
@@ -155,6 +160,9 @@ MainComponent::~MainComponent() {
     presetSelector_.removeListener(this);
 }
 
+/// <summary>
+/// Paint handler draws background and updates FPS accumulation.
+/// </summary>
 void MainComponent::paint(juce::Graphics& g) {
     auto now = static_cast<juce::int64>(juce::Time::getMillisecondCounterHiRes());
     if (lastPaintTimestampMs_ > 0) {
@@ -172,6 +180,9 @@ void MainComponent::paint(juce::Graphics& g) {
     g.drawRoundedRectangle(bounds, 10.0f, 1.0f);
 }
 
+/// <summary>
+/// Lays out child components responsively when window resized.
+/// </summary>
 void MainComponent::resized() {
     auto area = getLocalBounds().reduced(12);
     auto header = area.removeFromTop(48);
@@ -216,6 +227,9 @@ void MainComponent::resized() {
     metricsDisplay_.setBounds(area);
 }
 
+/// <summary>
+/// Timer callback updates metrics, timeline, waveform and status bar each frame.
+/// </summary>
 void MainComponent::timerCallback() {
     refreshMetrics();
     updateStatusBar();
@@ -256,6 +270,9 @@ void MainComponent::timerCallback() {
     repaint();
 }
 
+/// <summary>
+/// Handles preset selection changes.
+/// </summary>
 void MainComponent::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
     if (comboBoxThatHasChanged == &presetSelector_) {
         auto index = static_cast<size_t>(presetSelector_.getSelectedId() - 1);
@@ -264,6 +281,9 @@ void MainComponent::comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) {
     }
 }
 
+/// <summary>
+/// Handles button clicks (Settings dialog).
+/// </summary>
 void MainComponent::buttonClicked(juce::Button* button) {
     if (button == &settingsButton_) {
         SettingsDialog::showDialog(settings_, this, audioDeviceManager_, [this](bool accepted, const AppSettings& updated) {
@@ -284,6 +304,9 @@ void MainComponent::buttonClicked(juce::Button* button) {
     }
 }
 
+/// <summary>
+/// Attempts to read latest metrics from the metrics bus.
+/// </summary>
 void MainComponent::refreshMetrics() {
     yvc::AnalysisResults latest;
     if (metricsBus_.read(latest)) {
@@ -293,11 +316,17 @@ void MainComponent::refreshMetrics() {
     }
 }
 
+/// <summary>
+/// Applies a visualization preset.
+/// </summary>
 void MainComponent::applyPreset(const Preset& preset) {
     metricsDisplay_.setDisplayedMetrics(preset.metrics);
     presetDescription_.setText(TRANS(preset.descriptionKey), juce::dontSendNotification);
 }
 
+/// <summary>
+/// Updates status bar text with FPS, CPU, RAM, and time remaining.
+/// </summary>
 void MainComponent::updateStatusBar() {
     auto now = juce::Time::getMillisecondCounterHiRes();
     if (accumulatedFrames_ > 0 && accumulatedFrameTimeMs_ > 0.0) {
@@ -329,6 +358,9 @@ void MainComponent::updateStatusBar() {
     statusBar_.setText(text, juce::dontSendNotification);
 }
 
+/// <summary>
+/// Refreshes UI labels for current language.
+/// </summary>
 void MainComponent::updateUILanguage() {
     settingsButton_.setButtonText(TRANS("settings"));
     
@@ -346,6 +378,9 @@ void MainComponent::updateUILanguage() {
     repaint();
 }
 
+/// <summary>
+/// Recreates advanced visualization layout depending on settings.
+/// </summary>
 void MainComponent::updateVisualizationLayout() {
     if (advancedF0Heatmap_) {
         removeChildComponent(advancedF0Heatmap_.get());
@@ -406,6 +441,9 @@ void MainComponent::updateVisualizationLayout() {
     resized();
 }
 
+/// <summary>
+/// Evaluates frame time and downgrades FPS target if needed.
+/// </summary>
 void MainComponent::evaluateFrameBudget() {
     accumulatedFrameTimeMs_ = juce::jmin(accumulatedFrameTimeMs_, 10000.0);
     if (fpsEvaluationStartMs_ == 0)
@@ -429,6 +467,9 @@ void MainComponent::evaluateFrameBudget() {
     }
 }
 
+/// <summary>
+/// Configures the timer according to current FPS budget.
+/// </summary>
 void MainComponent::configureTimerForCurrentBudget() {
     stopTimer();
     auto currentBudget = frameBudgets_[frameBudgetIndex_];
@@ -440,6 +481,9 @@ void MainComponent::configureTimerForCurrentBudget() {
     }
 }
 
+/// <summary>
+/// Applies audio settings (device configuration + analyzer rebuild).
+/// </summary>
 void MainComponent::applyAudioSettings() {
     // Stop audio processing
     stopAudioProcessing();
@@ -472,6 +516,9 @@ void MainComponent::applyAudioSettings() {
     startAudioProcessing();
 }
 
+/// <summary>
+/// Starts audio callback processing.
+/// </summary>
 void MainComponent::startAudioProcessing() {
     if (audioBridge_) {
         audioDeviceManager_.addAudioCallback(audioBridge_.get());
@@ -479,6 +526,9 @@ void MainComponent::startAudioProcessing() {
     }
 }
 
+/// <summary>
+/// Stops audio callback processing.
+/// </summary>
 void MainComponent::stopAudioProcessing() {
     if (audioBridge_) {
         audioDeviceManager_.removeAudioCallback(audioBridge_.get());
@@ -486,4 +536,4 @@ void MainComponent::stopAudioProcessing() {
     }
 }
 
-} // namespace yvc::app
+} // namespace yo

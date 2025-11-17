@@ -25,6 +25,9 @@
 
 namespace { // anonymous
 
+/// <summary>
+/// Main JUCE application class handling startup/shutdown.
+/// </summary>
 class VoiVoiApplication : public juce::JUCEApplication {
 public:
     VoiVoiApplication() = default;
@@ -33,6 +36,9 @@ public:
     const juce::String getApplicationVersion() override { return JUCE_APPLICATION_VERSION_STRING; }
     bool moreThanOneInstanceAllowed() override { return false; }
 
+    /// <summary>
+    /// Initializes subsystems and creates the main window.
+    /// </summary>
     void initialise(const juce::String& commandLineParameters) override {
         auto& logger = ::yvc::Logger::getInstance();
         ::yvc::LoggerConfig logConfig;
@@ -76,22 +82,17 @@ public:
         logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Main window created and shown");
     }
 
+    /// <summary>
+    /// Shuts down and releases resources.
+    /// </summary>
     void shutdown() override {
         auto& logger = ::yvc::Logger::getInstance();
         logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Application shutting down");
-
-        // Destroy window (and contained MainComponent with Timer) first.
         mainWindow_ = nullptr;
-
-        // Process any pending Timer callbacks synchronously while MessageManager is still alive.
         juce::Timer::callPendingTimersSynchronously();
-        // Post a no-op async message to flush the queue if possible.
         juce::MessageManager::callAsync([](){});
-
-        // Release other resources next.
         metricsBus_.reset();
         audioDeviceManager_.reset();
-
         logger.log(::yvc::LogLevel::LOGLV_INFO, __FILE__, __LINE__, __func__, "Application shutdown complete");
         ::yvc::Logger::getInstance().shutdown();
     }
@@ -102,14 +103,16 @@ public:
     void anotherInstanceStarted(const juce::String&) override { if (mainWindow_) mainWindow_->toFront(true); }
 
 private:
+    /// <summary>
+    /// Main window wrapper for the primary GUI component.
+    /// </summary>
     class MainWindow : public juce::DocumentWindow {
     public:
         MainWindow(juce::String name, ::yvc::MetricsBus& bus, juce::AudioDeviceManager& audioManager)
             : juce::DocumentWindow(name,
                   juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId),
                   juce::DocumentWindow::allButtons),
-              audioDeviceManager_(audioManager)
-        {
+              audioDeviceManager_(audioManager) {
             configurePropertiesStorage();
             setUsingNativeTitleBar(true);
             setResizable(true, true);
@@ -131,25 +134,12 @@ private:
         }
         ~MainWindow() override { setContentComponent(nullptr); }
         void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
-        void moved() override {
-            if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowX", getX()); s->setValue("windowY", getY()); s->saveIfNeeded(); }
-        }
-        void resized() override {
-            DocumentWindow::resized();
-            if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowWidth", getWidth()); s->setValue("windowHeight", getHeight()); s->saveIfNeeded(); }
-        }
+        void moved() override { if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowX", getX()); s->setValue("windowY", getY()); s->saveIfNeeded(); } }
+        void resized() override { DocumentWindow::resized(); if (auto* s = appProperties_.getUserSettings()) { s->setValue("windowWidth", getWidth()); s->setValue("windowHeight", getHeight()); s->saveIfNeeded(); } }
     private:
         juce::AudioDeviceManager& audioDeviceManager_;
-        juce::ApplicationProperties appProperties_; // non-static to ensure deterministic destruction order
-
-        void configurePropertiesStorage() {
-            juce::PropertiesFile::Options o;
-            o.applicationName = JUCE_APPLICATION_NAME_STRING;
-            o.filenameSuffix = ".settings";
-            o.osxLibrarySubFolder = "Application Support";
-            o.folderName = "VoiVoi";
-            appProperties_.setStorageParameters(o);
-        }
+        juce::ApplicationProperties appProperties_;
+        void configurePropertiesStorage() { juce::PropertiesFile::Options o; o.applicationName = JUCE_APPLICATION_NAME_STRING; o.filenameSuffix = ".settings"; o.osxLibrarySubFolder = "Application Support"; o.folderName = "VoiVoi"; appProperties_.setStorageParameters(o); }
     };
 
     std::unique_ptr<MainWindow> mainWindow_;

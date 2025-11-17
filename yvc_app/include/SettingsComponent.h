@@ -11,6 +11,9 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// UI component for editing application audio and visualization settings.
+/// </summary>
 class SettingsComponent : public juce::Component {
 public:
     SettingsComponent();
@@ -19,7 +22,9 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    // Get current settings
+    /// <summary>
+    /// Aggregate settings snapshot.
+    /// </summary>
     struct Settings {
         std::string inputDeviceId;
         std::string inputDeviceName;
@@ -32,10 +37,19 @@ public:
         bool autoSaveOnLimit;
     };
 
+    /// <summary>
+    /// Gets current settings.
+    /// </summary>
     Settings getSettings() const;
+
+    /// <summary>
+    /// Applies provided settings to the UI.
+    /// </summary>
     void setSettings(const Settings& settings);
 
-    // Callbacks
+    /// <summary>
+    /// Invoked when settings change.
+    /// </summary>
     std::function<void(const Settings&)> onSettingsChanged;
 
 private:
@@ -83,6 +97,9 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsComponent)
 };
 
+/// <summary>
+/// Window container for the SettingsComponent.
+/// </summary>
 class SettingsWindow : public juce::DocumentWindow {
 public:
     SettingsWindow();
@@ -90,6 +107,9 @@ public:
 
     void closeButtonPressed() override;
 
+    /// <summary>
+    /// Gets underlying SettingsComponent pointer.
+    /// </summary>
     SettingsComponent* getSettingsComponent();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SettingsWindow)

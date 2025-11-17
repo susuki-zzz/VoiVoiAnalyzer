@@ -34,10 +34,16 @@ CPPAnalyzer::~CPPAnalyzer() = default;
 CPPAnalyzer::CPPAnalyzer(CPPAnalyzer&&) noexcept = default;
 CPPAnalyzer& CPPAnalyzer::operator=(CPPAnalyzer&&) noexcept = default;
 
+/// <summary>
+/// Public entry for computing CPP value (delegates to computeCPP).
+/// </summary>
 float CPPAnalyzer::analyze(const Sample* samples, size_t num_samples) {
     return computeCPP(samples, num_samples);
 }
 
+/// <summary>
+/// Computes cepstral peak prominence (CPP) in dB within typical F0 quefrency band.
+/// </summary>
 float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
     const size_t fft_size = std::min(static_cast<size_t>(config_.fft_size), num_samples);
     if (fft_size == 0) {
@@ -55,21 +61,20 @@ float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
         return 0.0f;
     }
 
-    // Copy and window samples using the reusable buffer
+    // Copy and window samples using the reusable buffer (Hamming window)
     const float window_denominator = fft_size > 1 ? static_cast<float>(fft_size - 1) : 1.0f;
-
     for (size_t i = 0; i < fft_size; ++i) {
         const float window = 0.54f - 0.46f * std::cos(kPi * 2.0f * static_cast<float>(i) / window_denominator);
         impl_->fft_buffer[i] = samples[i] * window;
     }
 
-    // Compute FFT
+    // Forward FFT
     kiss_fftr(fft_cfg, impl_->fft_buffer.data(), impl_->fft_out_buffer.data());
 
     const size_t half = fft_size / 2;
     const size_t positive_limit = (fft_size % 2 == 0) ? half : half + 1;
 
-    // Compute log magnitude spectrum for positive frequencies and store in reusable buffer
+    // Log magnitude spectrum for positive freqs
     for (size_t i = 0; i <= half; ++i) {
         const float real = impl_->fft_out_buffer[i].r;
         const float imag = impl_->fft_out_buffer[i].i;
@@ -77,31 +82,28 @@ float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
         impl_->fft_buffer[i] = std::log(magnitude + 1e-10f);
     }
 
-    // Build a full complex spectrum with conjugate symmetry
+    // Build conjugate-symmetric complex spectrum of log-magnitudes
     for (size_t i = 0; i < fft_size; ++i) {
         impl_->log_spectrum_buffer[i].r = 0.0f;
         impl_->log_spectrum_buffer[i].i = 0.0f;
     }
-
     for (size_t i = 0; i <= half; ++i) {
         impl_->log_spectrum_buffer[i].r = impl_->fft_buffer[i];
     }
-
     for (size_t i = 1; i < positive_limit; ++i) {
         const size_t mirror = fft_size - i;
         impl_->log_spectrum_buffer[mirror].r = impl_->log_spectrum_buffer[i].r;
         impl_->log_spectrum_buffer[mirror].i = -impl_->log_spectrum_buffer[i].i;
     }
 
-    // Inverse FFT to get cepstrum
+    // Inverse FFT to derive real cepstrum sequence
     kiss_fft(ifft_cfg, impl_->log_spectrum_buffer.data(), impl_->cepstrum_complex_buffer.data());
-
     const float scale = 1.0f / static_cast<float>(fft_size);
     for (size_t i = 0; i < fft_size; ++i) {
         impl_->cepstrum_buffer[i] = impl_->cepstrum_complex_buffer[i].r * scale;
     }
 
-    // Find peak in quefrency range corresponding to typical F0 (80-400 Hz)
+    // Peak search in quefrency window corresponding to 80–400 Hz
     const size_t min_quefrency = static_cast<size_t>(config_.sample_rate / 400);
     const size_t max_quefrency = static_cast<size_t>(config_.sample_rate / 80);
     const size_t quefrency_end = std::min(max_quefrency, fft_size);
@@ -109,7 +111,6 @@ float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
     float peak_value = 0.0f;
     float baseline_sum = 0.0f;
     size_t count = 0;
-
     for (size_t i = min_quefrency; i < quefrency_end; ++i) {
         const float value = std::fabs(impl_->cepstrum_buffer[i]);
         peak_value = std::max(peak_value, value);
@@ -125,7 +126,6 @@ float CPPAnalyzer::computeCPP(const Sample* samples, size_t num_samples) {
 
     kiss_fft_free(fft_cfg);
     kiss_fft_free(ifft_cfg);
-
     return cpp;
 }
 

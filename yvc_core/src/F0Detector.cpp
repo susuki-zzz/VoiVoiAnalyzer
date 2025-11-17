@@ -15,9 +15,7 @@ F0Detector::F0Detector(const AudioConfig& config)
     yin_buffer_.resize(max_lag);
     autocorr_buffer_.resize(max_lag);
     f0_history_.fill(0.0f);
-    
-    LOG_DEBUGF("F0Detector initialized: SR=%d, buffer_size=%zu", 
-               config.sample_rate, yin_buffer_.size());
+    LOG_DEBUGF("F0Detector initialized: SR=%d, buffer_size=%zu", config.sample_rate, yin_buffer_.size());
 }
 
 void F0Detector::reset() {
@@ -41,9 +39,7 @@ void F0Detector::setHysteresis(float voiced_threshold, float unvoiced_threshold)
     unvoiced_threshold_ = unvoiced_threshold;
 }
 
-void F0Detector::setMaxSemitoneJump(float max_jump_st) {
-    max_semitone_jump_ = max_jump_st;
-}
+void F0Detector::setMaxSemitoneJump(float max_jump_st) { max_semitone_jump_ = max_jump_st; }
 
 float F0Detector::detect(const Sample* samples, size_t num_samples, bool& valid) {
     float confidence = 0.0f;

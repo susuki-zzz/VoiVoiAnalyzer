@@ -8,12 +8,22 @@
 
 namespace yvc::app {
 
+/// <summary>
+/// Simple waveform painter for a short mono buffer (legacy mini waveform).
+/// </summary>
 class WaveformComponent : public juce::Component {
 public:
     WaveformComponent();
     void paint(juce::Graphics& g) override;
 
+    /// <summary>
+    /// Sets the waveform samples and their sample rate.
+    /// </summary>
     void setSamples(const std::vector<float>& samples, float sampleRate);
+
+    /// <summary>
+    /// Sets vertical range of the waveform display.
+    /// </summary>
     void setVerticalRange(float minV, float maxV) { minY_ = minV; maxY_ = maxV; }
 
 private:

@@ -10,56 +10,95 @@
 
 namespace yvc {
 
-// Preprocessor interface for audio effects chain
-// Preprocessing affects monitoring/recording paths only, NOT analysis
-// Analysis always uses dry (unprocessed) signal
+/// <summary>
+/// Preprocessor interface for audio effects chain.
+/// Preprocessing affects monitoring/recording paths only, NOT analysis.
+/// Analysis always uses dry (unprocessed) signal.
+/// </summary>
 class IPreprocessor {
 public:
     virtual ~IPreprocessor() = default;
     
-    // Process audio samples in-place or to output buffer
-    // @param in: Input audio samples
-    // @param out: Output audio samples (can be same as in for in-place)
-    // @param n: Number of samples to process
+    /// <summary>
+    /// Processes audio samples in-place or to output buffer.
+    /// </summary>
+    /// <param name="in">Input audio samples</param>
+    /// <param name="out">Output audio samples (can be same as in for in-place)</param>
+    /// <param name="n">Number of samples to process</param>
     virtual void process(const float* in, float* out, size_t n) = 0;
     
-    // Get the latency this preprocessor introduces (in samples)
-    // Used for latency compensation in future implementations
+    /// <summary>
+    /// Gets the latency this preprocessor introduces (in samples).
+    /// Used for latency compensation in future implementations.
+    /// </summary>
+    /// <returns>Latency in samples</returns>
     virtual int latency_samples() const { return 0; }
     
-    // Get preprocessor name
+    /// <summary>
+    /// Gets preprocessor name.
+    /// </summary>
+    /// <returns>Preprocessor name as C-string</returns>
     virtual const char* name() const = 0;
     
-    // Set preprocessor parameters
-    // @param kv: Key-value pairs of parameter name to value
+    /// <summary>
+    /// Sets preprocessor parameters.
+    /// </summary>
+    /// <param name="kv">Key-value pairs of parameter name to value</param>
     virtual void setParams(const std::unordered_map<std::string, float>& kv) = 0;
     
-    // Get current parameter values
+    /// <summary>
+    /// Gets current parameter values.
+    /// </summary>
+    /// <returns>Map of parameter name to value</returns>
     virtual std::unordered_map<std::string, float> getParams() const = 0;
 };
 
-// Preprocessor flags for apply targets
+/// <summary>
+/// Preprocessor flags for apply targets.
+/// </summary>
 enum class PreprocessTarget {
     Monitor = 0x01,  // Apply to monitoring output
     Record = 0x02    // Apply to recording output
 };
 
+/// <summary>
+/// Converts PreprocessTarget to integer mask.
+/// </summary>
+/// <param name="target">Preprocess target</param>
+/// <returns>Integer mask value</returns>
 constexpr int toMask(PreprocessTarget target) {
     return static_cast<int>(target);
 }
 
+/// <summary>
+/// Bitwise OR operator for PreprocessTarget.
+/// </summary>
 constexpr PreprocessTarget operator|(PreprocessTarget lhs, PreprocessTarget rhs) {
     return static_cast<PreprocessTarget>(toMask(lhs) | toMask(rhs));
 }
 
+/// <summary>
+/// Bitwise AND operator for PreprocessTarget.
+/// </summary>
 constexpr PreprocessTarget operator&(PreprocessTarget lhs, PreprocessTarget rhs) {
     return static_cast<PreprocessTarget>(toMask(lhs) & toMask(rhs));
 }
 
+/// <summary>
+/// Checks if any target flags are set.
+/// </summary>
+/// <param name="value">Target value to check</param>
+/// <returns>True if any flags are set</returns>
 constexpr bool any(PreprocessTarget value) {
     return toMask(value) != 0;
 }
 
+/// <summary>
+/// Checks if configured targets match query.
+/// </summary>
+/// <param name="configured">Configured targets</param>
+/// <param name="query">Query targets</param>
+/// <returns>True if any configured targets match query</returns>
 constexpr bool matches(PreprocessTarget configured, PreprocessTarget query) {
     return any(configured & query);
 }
