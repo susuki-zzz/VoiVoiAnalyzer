@@ -1,5 +1,6 @@
 // VoiVoi GUI Application - Metrics Visualization Components
 // License: GPLv3
+// Purpose: Lightweight UI components to visualize real-time analysis metrics.
 
 #pragma once
 
@@ -16,6 +17,8 @@
 #include "TimelineController.h"
 
 namespace yvc::app {
+
+// NOTE: Components here are lightweight painters; business logic lives in yvc_core.
 
 enum class MetricDisplayType {
     F0Gauge,
@@ -113,6 +116,7 @@ private:
     std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
 };
 
+/// Heatmap with time axis. If a TimelineController is set, X is mapped from its visibleRange.
 class HeatmapComponent : public juce::Component, public ITimelineListener {
 public:
     enum class ScaleMode { LinearHz, LogHz, MidiNote };
@@ -126,7 +130,7 @@ public:
     void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
     void setScaleMode(ScaleMode mode) { scaleMode_ = mode; repaint(); }
 
-    // Timeline
+    // Timeline wiring
     void setTimelineController(TimelineController* ctl) { timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
     void timelineRangeChanged(const juce::Range<double>&) override { repaint(); }
     void timelinePlayheadChanged(double) override { repaint(); }

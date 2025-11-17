@@ -1,5 +1,6 @@
 // VoiVoi GUI Application - Metrics Visualization Components Implementation
 // License: GPLv3
+// Purpose: Render real-time analysis values (gauges/meters/heatmaps) with minimal logic.
 
 #include "MetricsComponents.h"
 #include <juce_graphics/juce_graphics.h>
@@ -137,7 +138,7 @@ void HeatmapComponent::paint(juce::Graphics& g){ auto bounds=getLocalBounds().to
         for (auto f: major) if (f>=minF && f<=maxF) emitLabel(f);
     } else {
         for(int i=0;i<=6;++i){ float fMarker=minF + (maxF-minF) * (i/6.0f); emitLabel(fMarker);} }
-    // F0 with intensity colour using confidence and timeline
+    // F0 with intensity colour using confidence and timeline mapping
     juce::Range<double> range{0.0, 0.0}; if(timeline_) range = timeline_->getVisibleRange();
     if(!f0History_.empty() && !timeHistory_.empty()){
         int N = (int)std::min(f0History_.size(), timeHistory_.size());

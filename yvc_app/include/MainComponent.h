@@ -1,5 +1,9 @@
 // VoiVoi GUI Application - Main Component
 // License: GPLv3
+// Purpose: Top-level JUCE UI container; wires audio bridge, metrics bus, timeline, and visualization components.
+// Notes:
+//  - Holds a shared TimelineController used by time-axis views (heatmaps, scrolling waveform).
+//  - Enforces FPS-only auto-degrade policy; analysis parameters are not changed automatically.
 
 #pragma once
 
@@ -61,8 +65,8 @@ private:
     yvc::AnalysisResults currentMetrics_;
     MetricsDisplayComponent metricsDisplay_;
     HeatmapComponent heatmapDisplay_;
-    std::unique_ptr<WaveformComponent> waveformDisplay_;
-    std::unique_ptr<ScrollingWaveformComponent> scrollingWaveform_;
+    std::unique_ptr<WaveformComponent> waveformDisplay_; // legacy mini waveform (not timeline-synced)
+    std::unique_ptr<ScrollingWaveformComponent> scrollingWaveform_; // timeline-synced time-domain view
 
     PresetManager presetManager_;
     AppSettings settings_;

@@ -1,5 +1,6 @@
 // VoiVoi GUI Application - JUCE Audio Bridge Implementation
 // License: GPLv3
+// RT notes: keep audio callback free of blocking work; analyzer call is expected to be lock-free.
 
 #include "JuceAudioBridge.h"
 #include <yvc_core/Logger.h>
@@ -28,7 +29,7 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
     int numSamples,
     const juce::AudioIODeviceCallbackContext& context) {
     
-    // Clear output (we're input-only)
+    // Output must be silent (input-only app)
     for (int ch = 0; ch < numOutputChannels; ++ch) {
         if (outputChannelData[ch] != nullptr) {
             juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
@@ -65,7 +66,7 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
         }
     }
 
-    // Calculate timestamp from stream time
+    // Calculate timestamp from stream time (seconds since start)
     double timestamp = 0.0;
     if (stats_.isRunning && streamStartTime_.toMilliseconds() > 0) {
         auto elapsed = juce::Time::getCurrentTime() - streamStartTime_;
@@ -75,7 +76,7 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
     // Feed to analyzer engine
     engine_->process(monoBuffer_.data(), static_cast<size_t>(numSamples), timestamp);
 
-    // Store into recent ring buffer
+    // Store into recent ring buffer for UI waveform
     {
         std::lock_guard<std::mutex> lk(recentMutex_);
         if (recentCapacity_ == 0) {
@@ -88,11 +89,11 @@ void JuceAudioBridge::audioDeviceIOCallbackWithContext(
             recentSamples_[recentWritePos_] = monoBuffer_[static_cast<size_t>(i)];
             recentWritePos_ = (recentWritePos_ + 1) % recentCapacity_;
         }
-        // The timestamp corresponds to the end of this block
+        // Timestamp corresponds to the end of this block
         recentLastTimestamp_ = timestamp;
     }
 
-    // Update statistics
+    // Update statistics (non-RT critical)
     {
         std::lock_guard<std::mutex> lock(statsMutex_);
         stats_.totalSamplesProcessed += static_cast<uint64_t>(numSamples);

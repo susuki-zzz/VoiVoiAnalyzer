@@ -1,5 +1,6 @@
 // VoiVoi GUI Application - Scrolling Waveform Component Implementation
 // License: GPLv3
+// Renders last N seconds of mono PCM using a timestamp-aware X mapping.
 
 #include "ScrollingWaveformComponent.h"
 #include <algorithm>
@@ -24,7 +25,7 @@ void ScrollingWaveformComponent::paint(juce::Graphics& g){ auto b = getLocalBoun
     std::vector<float> snapshot; float minY, maxY; double tFirst, tLast; juce::Range<double> range{0.0,0.0}; {
         std::lock_guard<std::mutex> lk(mutex_); if(filled_ == 0){ return; } size_t count = filled_; snapshot.resize(count); size_t start = (writePos_ + ring_.size() - count) % ring_.size(); for(size_t i=0;i<count;++i){ snapshot[i] = ring_[(start + i) % ring_.size()]; } minY = minY_; maxY = maxY_; tFirst = firstTimestamp_; tLast = lastTimestamp_; if(timeline_) range = timeline_->getVisibleRange(); }
     juce::Path p; float w = b.getWidth(); float h = b.getHeight(); float rangeY = (maxY - minY) + 1e-12f; size_t N = snapshot.size();
-    auto tToX = [&](double t){ if(range.getLength() <= 0.0){ // fallback to use sample index mapping
+    auto tToX = [&](double t){ if(range.getLength() <= 0.0 || tLast <= tFirst){ // fallback to index mapping
             return b.getX() + (float) ((t - tFirst) / juce::jmax(1e-9, (tLast - tFirst))) * b.getWidth(); }
         return b.getX() + float((t - range.getStart()) / range.getLength()) * b.getWidth(); };
     for(size_t i=0;i<N;++i){ double t = (tLast - (double)(N - 1 - i)/double(sampleRate_)); float x = (float)tToX(t); float norm = (snapshot[i] - minY) / rangeY; norm = juce::jlimit(0.0f, 1.0f, norm); float y = b.getBottom() - norm * h; if(i==0) p.startNewSubPath(x,y); else p.lineTo(x,y); }

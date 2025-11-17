@@ -1,6 +1,9 @@
 // VoiVoi GUI Application - JUCE Audio Bridge
 // License: GPLv3
-// Purpose: Bridge between JUCE AudioDeviceManager and yvc_core analysis engine
+// Purpose: Bridge between JUCE AudioDeviceManager and yvc_core analysis engine.
+// Notes:
+//  - Real-time path must avoid heap allocations and blocking. Only minimal locking is used.
+//  - Provides a small mono ring buffer snapshot for UI waveform with end timestamp.
 
 #pragma once
 
@@ -85,23 +88,24 @@ public:
         }
     };
 
+    /// Small slice of mono audio for UI waveforms.
     struct AudioSlice { std::vector<float> samples; double endTimestamp = 0.0; };
 
     Statistics getStatistics() const;
     void resetStatistics();
 
-    // Fetch up to maxSamples of latest mono samples with the block end timestamp of the last sample.
+    /// Fetch up to maxSamples of latest mono samples with the block end timestamp of the last sample.
     void getRecentMonoSamples(AudioSlice& out, size_t maxSamples) const;
-    // Backward-compatible helper
+    /// Backward-compatible helper that returns samples only (no timestamp).
     void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
-    // Get current sample rate of underlying engine
+    /// Get current sample rate of underlying engine.
     uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
 
 private:
     yvc::MetricsBus& metricsBus_;
     std::unique_ptr<yvc::AnalyzerEngine> engine_;
     
-    // Mono conversion buffer
+    // Mono conversion buffer (RT path)
     std::vector<yvc::Sample> monoBuffer_;
     
     // Statistics
@@ -109,22 +113,12 @@ private:
     Statistics stats_;
     juce::Time streamStartTime_;
 
-    // Recent mono waveform ring buffer for UI
+    // Recent mono waveform ring buffer for UI (1 sec by default)
     mutable std::mutex recentMutex_;
     std::vector<float> recentSamples_;
     size_t recentWritePos_ = 0;
     size_t recentCapacity_ = 0;
     double recentLastTimestamp_ = 0.0;
-
-public:
-    // Fetch up to maxSamples of latest mono samples (chronological order). If fewer stored returns available.
-    // void getRecentMonoSamples(std::vector<float>& out, size_t maxSamples) const;
-    // Get current sample rate of underlying engine
-    // uint32_t getSampleRate() const { return engine_ ? engine_->getConfig().sample_rate : 0; }
-
-private:
-    // Store latest numSamples mono samples for recent waveform display (not used currently)
-    // void storeRecentMonoSamples(const float* const* inputChannelData, int numInputChannels, int numSamples);
 };
 
 } // namespace yvc::app
