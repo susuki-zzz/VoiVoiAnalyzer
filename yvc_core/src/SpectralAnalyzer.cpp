@@ -20,7 +20,8 @@ SpectralAnalyzer::SpectralAnalyzer(const AudioConfig& config)
 /// <summary>
 /// Performs FFT, derives magnitude spectrum then computes tilt and /s/ metrics.
 /// </summary>
-SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* samples, size_t num_samples) {
+SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyze(const Sample* samples,
+                                                            size_t num_samples) {
     SpectralResults results;
 
     const size_t fft_size = std::min(static_cast<size_t>(config_.fft_size), num_samples);
@@ -99,7 +100,8 @@ float SpectralAnalyzer::computeSpectralTilt(const float* spectrum, size_t spectr
 /// <summary>
 /// Detects /s/ presence and centroid via energy ratio in 4–8 kHz band.
 /// </summary>
-SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyzeSibilant(const float* spectrum, size_t spectrum_size) {
+SpectralAnalyzer::SpectralResults SpectralAnalyzer::analyzeSibilant(const float* spectrum,
+                                                                    size_t spectrum_size) {
     SpectralResults results;
 
     // /s/ sound is typically concentrated in 4-8 kHz range

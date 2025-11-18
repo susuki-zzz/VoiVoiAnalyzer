@@ -8,11 +8,15 @@ namespace yvc::app {
 /// <summary>
 /// Registers a listener.
 /// </summary>
-void TimelineController::addListener(ITimelineListener* l){ listeners_.add(l); }
+void TimelineController::addListener(ITimelineListener* l){
+    listeners_.add(l);
+}
 /// <summary>
 /// Unregisters a listener.
 /// </summary>
-void TimelineController::removeListener(ITimelineListener* l){ listeners_.remove(l); }
+void TimelineController::removeListener(ITimelineListener* l){
+    listeners_.remove(l);
+}
 
 /// <summary>
 /// Sets visible range explicitly and disables followLatest.
@@ -23,7 +27,9 @@ void TimelineController::setVisibleRange(const juce::Range<double>& r){ {
         state_.windowSeconds = r.getLength();
         state_.followLatest = false;
     }
-    listeners_.call([&](ITimelineListener& x){ x.timelineRangeChanged(r); });
+    listeners_.call([&](ITimelineListener& x){
+        x.timelineRangeChanged(r);
+    });
 }
 
 /// <summary>
@@ -43,7 +49,9 @@ void TimelineController::setFollowLatest(bool enabled){ {
         std::scoped_lock lk(mtx_);
         state_.followLatest = enabled;
     }
-    listeners_.call([&](ITimelineListener& x){ x.timelineFollowModeChanged(enabled); });
+    listeners_.call([&](ITimelineListener& x){
+        x.timelineFollowModeChanged(enabled);
+    });
 }
 
 /// <summary>
@@ -52,35 +60,56 @@ void TimelineController::setFollowLatest(bool enabled){ {
 void TimelineController::setWindowSeconds(double s){ if(s <= 0.1) s = 0.1; {
         std::scoped_lock lk(mtx_);
         state_.windowSeconds = s;
-        state_.visibleRange = { state_.visibleRange.getEnd() - s, state_.visibleRange.getEnd() };
+        state_.visibleRange = {
+            state_.visibleRange.getEnd() - s,
+            state_.visibleRange.getEnd()
+        };
     }
-    listeners_.call([&](ITimelineListener& x){ x.timelineRangeChanged(getVisibleRange()); });
+    listeners_.call([&](ITimelineListener& x){
+        x.timelineRangeChanged(getVisibleRange());
+    });
 }
 
 /// <summary>
 /// Advances range/playhead to include latest timestamp when followLatest is enabled.
 /// </summary>
-void TimelineController::advanceToLatest(double latest){ juce::Range<double> r; bool notify = false; {
+void TimelineController::advanceToLatest(double latest){
+    juce::Range<double> r;
+    bool notify = false;
+    {
         std::scoped_lock lk(mtx_);
         if(state_.followLatest){
             r = { latest - state_.windowSeconds, latest };
-            if(r != state_.visibleRange){ state_.visibleRange = r; notify = true; }
+            if(r != state_.visibleRange){
+                state_.visibleRange = r;
+                notify = true;
+            }
             state_.playhead = latest;
         } else {
             return;
         }
     }
-    if(notify) listeners_.call([&](ITimelineListener& x){ x.timelineRangeChanged(r); });
-    listeners_.call([&](ITimelineListener& x){ x.timelinePlayheadChanged(latest); });
+    if(notify) listeners_.call([&](ITimelineListener& x){
+        x.timelineRangeChanged(r);
+    });
+    listeners_.call([&](ITimelineListener& x){
+        x.timelinePlayheadChanged(latest);
+    });
 }
 
 /// <summary>
 /// Returns a copy of current timeline state.
 /// </summary>
-TimelineState TimelineController::getState() const { std::scoped_lock lk(mtx_); return state_; }
+TimelineState TimelineController::getState() const {
+    std::scoped_lock lk(mtx_);
+    return state_;
+}
 /// <summary>
 /// Returns current visible range.
 /// </summary>
-juce::Range<double> TimelineController::getVisibleRange() const { std::scoped_lock lk(mtx_); return state_.visibleRange; }
+juce::Range<double> TimelineController::getVisibleRange() const {
+    std::scoped_lock lk(mtx_);
+    return state_.visibleRange;
+}
 
 } // namespace yvc::app

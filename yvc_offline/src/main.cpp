@@ -31,8 +31,8 @@ int main(int argc, char* argv[]) {
     // Initialize logger for offline tool
     auto& logger = yvc::Logger::getInstance();
     yvc::LoggerConfig logConfig;
-    
-    #ifdef NDEBUG
+
+#ifdef NDEBUG
     // Release build - minimal logging to console
     logConfig.minLevel = yvc::LogLevel::LOGLV_INFO;
     logConfig.enableFile = false;
@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
     logConfig.includeTimestamp = false;
     logConfig.includeThreadId = false;
     logConfig.includeSourceLocation = false;
-    #else
+#else
     // Debug build - verbose logging
     logConfig.minLevel = yvc::LogLevel::LOGLV_DEBUG;
     logConfig.enableFile = true;
@@ -50,63 +50,69 @@ int main(int argc, char* argv[]) {
     logConfig.includeTimestamp = true;
     logConfig.includeThreadId = false;
     logConfig.includeSourceLocation = true;
-    #endif
-    
+#endif
+
     logger.configure(logConfig);
-    
-    if (argc < 3) {
+
+    if(argc < 3) {
         printUsage();
         return 1;
     }
-    
+
     std::string input_file;
     std::string output_file;
     yvc::PerformanceMode mode = yvc::PerformanceMode::Mode_Diagnostic;
-    
+
     // Parse command line arguments
-    for (int i = 1; i < argc; ++i) {
+    for(int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        
-        if (arg == "-h" || arg == "--help") {
+
+        if(arg == "-h" || arg == "--help") {
             printUsage();
             return 0;
-        } else if (arg == "-m" || arg == "--mode") {
-            if (i + 1 < argc) {
+        }
+        else if(arg == "-m" || arg == "--mode") {
+            if(i + 1 < argc) {
                 std::string mode_str = argv[++i];
-                if (mode_str == "light") {
+                if(mode_str == "light") {
                     mode = yvc::PerformanceMode::Mode_Light;
-                } else if (mode_str == "standard") {
+                }
+                else if(mode_str == "standard") {
                     mode = yvc::PerformanceMode::Mode_Standard;
-                } else if (mode_str == "diagnostic") {
+                }
+                else if(mode_str == "diagnostic") {
                     mode = yvc::PerformanceMode::Mode_Diagnostic;
-                } else {
+                }
+                else {
                     LOG_ERRORF("Unknown mode: %s", mode_str.c_str());
                     return 1;
                 }
             }
-        } else if (input_file.empty()) {
+        }
+        else if(input_file.empty()) {
             input_file = arg;
-        } else if (output_file.empty()) {
+        }
+        else if(output_file.empty()) {
             output_file = arg;
         }
     }
-    
-    if (input_file.empty() || output_file.empty()) {
+
+    if(input_file.empty() || output_file.empty()) {
         LOG_ERROR("Error: Input and output files must be specified");
         printUsage();
         return 1;
     }
-    
+
     // Process the file
     yvc::FileProcessor processor;
     processor.setMode(mode);
-    
-    if (!processor.processFile(input_file, output_file)) {
+
+    if(!processor.processFile(input_file, output_file)) {
         LOG_ERROR("Error: Failed to process file");
         logger.shutdown();
         return 1;
     }
-    
+
     LOG_INFO("Analysis complete!");
     logger.shutdown();
     return 0;

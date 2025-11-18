@@ -25,143 +25,143 @@
 
 namespace yvc::audio {
 
-/// <summary>
-/// Information about an audio device.
-/// </summary>
-struct AudioDeviceInfo {
-    std::string id;
-    std::string name;
-    uint32_t channels = 1;
-    double sampleRate = 48000.0;
-    bool isDefault = false;
-};
-
-/// <summary>
-/// Parameters for configuring an audio stream.
-/// </summary>
-struct AudioStreamParameters {
-    double sampleRate = 48000.0;
-    uint32_t channels = 1;
-    uint32_t framesPerBuffer = 512;
-};
-
-/// <summary>
-/// Callback function type for audio input processing.
-/// </summary>
-using AudioInputCallback = std::function<void(const float* samples, size_t frames, double sampleRate)>;
-
-/// <summary>
-/// Abstract interface for an audio device.
-/// </summary>
-class AudioDevice {
-public:
-    virtual ~AudioDevice() = default;
+    /// <summary>
+    /// Information about an audio device.
+    /// </summary>
+    struct AudioDeviceInfo {
+        std::string id;
+        std::string name;
+        uint32_t channels = 1;
+        double sampleRate = 48000.0;
+        bool isDefault = false;
+    };
 
     /// <summary>
-    /// Starts the audio device.
+    /// Parameters for configuring an audio stream.
     /// </summary>
-    virtual void start() = 0;
+    struct AudioStreamParameters {
+        double sampleRate = 48000.0;
+        uint32_t channels = 1;
+        uint32_t framesPerBuffer = 512;
+    };
 
     /// <summary>
-    /// Stops the audio device.
+    /// Callback function type for audio input processing.
     /// </summary>
-    virtual void stop() = 0;
+    using AudioInputCallback = std::function<void(const float* samples, size_t frames, double sampleRate)>;
 
     /// <summary>
-    /// Checks if the device is currently running.
+    /// Abstract interface for an audio device.
     /// </summary>
-    /// <returns>True if running, false otherwise</returns>
-    virtual bool isRunning() const = 0;
+    class AudioDevice {
+    public:
+        virtual ~AudioDevice() = default;
+
+        /// <summary>
+        /// Starts the audio device.
+        /// </summary>
+        virtual void start() = 0;
+
+        /// <summary>
+        /// Stops the audio device.
+        /// </summary>
+        virtual void stop() = 0;
+
+        /// <summary>
+        /// Checks if the device is currently running.
+        /// </summary>
+        /// <returns>True if running, false otherwise</returns>
+        virtual bool isRunning() const = 0;
+
+        /// <summary>
+        /// Gets device information.
+        /// </summary>
+        /// <returns>Reference to device info structure</returns>
+        virtual const AudioDeviceInfo& info() const = 0;
+
+        /// <summary>
+        /// Gets current stream parameters.
+        /// </summary>
+        /// <returns>Current stream parameters</returns>
+        virtual AudioStreamParameters streamParameters() const = 0;
+    };
 
     /// <summary>
-    /// Gets device information.
+    /// Abstract interface for platform-specific audio backend.
     /// </summary>
-    /// <returns>Reference to device info structure</returns>
-    virtual const AudioDeviceInfo& info() const = 0;
+    class IAudioBackend {
+    public:
+        virtual ~IAudioBackend() = default;
+
+        /// <summary>
+        /// Enumerates all available input devices.
+        /// </summary>
+        /// <returns>Vector of device information structures</returns>
+        virtual std::vector<AudioDeviceInfo> enumerateInputDevices() const = 0;
+
+        /// <summary>
+        /// Creates an input device with the specified parameters.
+        /// </summary>
+        /// <param name="deviceId">Device identifier</param>
+        /// <param name="params">Stream parameters</param>
+        /// <param name="callback">Audio input callback</param>
+        /// <returns>Unique pointer to the created device</returns>
+        virtual std::unique_ptr<AudioDevice> createInputDevice(
+            const std::string& deviceId,
+            const AudioStreamParameters& params,
+            AudioInputCallback callback) = 0;
+
+        /// <summary>
+        /// Creates the default input device with the specified parameters.
+        /// </summary>
+        /// <param name="params">Stream parameters</param>
+        /// <param name="callback">Audio input callback</param>
+        /// <returns>Unique pointer to the created device</returns>
+        virtual std::unique_ptr<AudioDevice> createDefaultInputDevice(
+            const AudioStreamParameters& params,
+            AudioInputCallback callback) = 0;
+    };
 
     /// <summary>
-    /// Gets current stream parameters.
+    /// Creates a CoreAudio backend (macOS/iOS).
     /// </summary>
-    /// <returns>Current stream parameters</returns>
-    virtual AudioStreamParameters streamParameters() const = 0;
-};
-
-/// <summary>
-/// Abstract interface for platform-specific audio backend.
-/// </summary>
-class IAudioBackend {
-public:
-    virtual ~IAudioBackend() = default;
+    /// <returns>Unique pointer to the backend</returns>
+    std::unique_ptr<IAudioBackend> createCoreAudioBackend();
 
     /// <summary>
-    /// Enumerates all available input devices.
+    /// Creates an ALSA backend (Linux).
     /// </summary>
-    /// <returns>Vector of device information structures</returns>
-    virtual std::vector<AudioDeviceInfo> enumerateInputDevices() const = 0;
+    /// <returns>Unique pointer to the backend</returns>
+    std::unique_ptr<IAudioBackend> createAlsaBackend();
 
     /// <summary>
-    /// Creates an input device with the specified parameters.
+    /// Creates a WASAPI backend (Windows).
     /// </summary>
-    /// <param name="deviceId">Device identifier</param>
-    /// <param name="params">Stream parameters</param>
-    /// <param name="callback">Audio input callback</param>
-    /// <returns>Unique pointer to the created device</returns>
-    virtual std::unique_ptr<AudioDevice> createInputDevice(
-        const std::string& deviceId,
-        const AudioStreamParameters& params,
-        AudioInputCallback callback) = 0;
+    /// <returns>Unique pointer to the backend</returns>
+    std::unique_ptr<IAudioBackend> createWasapiBackend();
 
     /// <summary>
-    /// Creates the default input device with the specified parameters.
+    /// Creates the default platform backend.
     /// </summary>
-    /// <param name="params">Stream parameters</param>
-    /// <param name="callback">Audio input callback</param>
-    /// <returns>Unique pointer to the created device</returns>
-    virtual std::unique_ptr<AudioDevice> createDefaultInputDevice(
-        const AudioStreamParameters& params,
-        AudioInputCallback callback) = 0;
-};
+    /// <returns>Unique pointer to the backend</returns>
+    std::unique_ptr<IAudioBackend> createPlatformBackend();
 
-/// <summary>
-/// Creates a CoreAudio backend (macOS/iOS).
-/// </summary>
-/// <returns>Unique pointer to the backend</returns>
-std::unique_ptr<IAudioBackend> createCoreAudioBackend();
+    /// <summary>
+    /// Checks if CoreAudio backend is available.
+    /// </summary>
+    /// <returns>True if available, false otherwise</returns>
+    bool hasCoreAudioBackend();
 
-/// <summary>
-/// Creates an ALSA backend (Linux).
-/// </summary>
-/// <returns>Unique pointer to the backend</returns>
-std::unique_ptr<IAudioBackend> createAlsaBackend();
+    /// <summary>
+    /// Checks if ALSA backend is available.
+    /// </summary>
+    /// <returns>True if available, false otherwise</returns>
+    bool hasAlsaBackend();
 
-/// <summary>
-/// Creates a WASAPI backend (Windows).
-/// </summary>
-/// <returns>Unique pointer to the backend</returns>
-std::unique_ptr<IAudioBackend> createWasapiBackend();
-
-/// <summary>
-/// Creates the default platform backend.
-/// </summary>
-/// <returns>Unique pointer to the backend</returns>
-std::unique_ptr<IAudioBackend> createPlatformBackend();
-
-/// <summary>
-/// Checks if CoreAudio backend is available.
-/// </summary>
-/// <returns>True if available, false otherwise</returns>
-bool hasCoreAudioBackend();
-
-/// <summary>
-/// Checks if ALSA backend is available.
-/// </summary>
-/// <returns>True if available, false otherwise</returns>
-bool hasAlsaBackend();
-
-/// <summary>
-/// Checks if WASAPI backend is available.
-/// </summary>
-/// <returns>True if available, false otherwise</returns>
-bool hasWasapiBackend();
+    /// <summary>
+    /// Checks if WASAPI backend is available.
+    /// </summary>
+    /// <returns>True if available, false otherwise</returns>
+    bool hasWasapiBackend();
 
 }  // namespace yvc::audio

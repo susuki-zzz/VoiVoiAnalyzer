@@ -27,9 +27,10 @@ int main() {
         yvc::MetricsBus metricsBus;
         std::cout << "✓ Core MetricsBus initialized successfully" << std::endl;
         std::cout << "Running core systems test..." << std::endl;
-        for (int i = 0; i < 5; ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(500)); std::cout << "." << std::flush; }
+        for(int i = 0; i < 5; ++i) { std::this_thread::sleep_for(std::chrono::milliseconds(500)); std::cout << "." << std::flush; }
         std::cout << std::endl << "✓ Core integration test completed successfully" << std::endl;
-    } catch (const std::exception& e) {
+    }
+    catch(const std::exception& e) {
         std::cerr << "✗ Core integration test failed: " << e.what() << std::endl;
         return 1;
     }

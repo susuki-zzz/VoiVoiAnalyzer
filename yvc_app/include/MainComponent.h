@@ -27,100 +27,103 @@
 
 namespace yvc::app {
 
-// Forward declarations
-struct AppSettings;
-class SettingsDialog;
-
-/// <summary>
-/// Main application component that hosts UI and coordinates audio + metrics.
-/// </summary>
-class MainComponent : public juce::Component,
-                      private juce::Timer,
-                      private juce::ComboBox::Listener,
-                      private juce::Button::Listener {
-public:
-    /// <summary>
-    /// Constructs the main component.
-    /// </summary>
-    /// <param name="metricsBus">Reference to shared metrics bus</param>
-    /// <param name="audioDeviceManager">JUCE audio device manager</param>
-    explicit MainComponent(yvc::MetricsBus& metricsBus, juce::AudioDeviceManager& audioDeviceManager);
+    // Forward declarations
+    struct AppSettings;
+    class SettingsDialog;
 
     /// <summary>
-    /// Destructor.
+    /// Main application component that hosts UI and coordinates audio + metrics.
     /// </summary>
-    ~MainComponent() override;
+    class MainComponent : public juce::Component,
+        private juce::Timer,
+        private juce::ComboBox::Listener,
+        private juce::Button::Listener
+    {
+    public:
+        /// <summary>
+        /// Constructs the main component.
+        /// </summary>
+        /// <param name="metricsBus">Reference to shared metrics bus</param>
+        /// <param name="audioDeviceManager">JUCE audio device manager</param>
+        explicit MainComponent(
+            yvc::MetricsBus& metricsBus,
+            juce::AudioDeviceManager& audioDeviceManager);
 
-    /// <summary>
-    /// Paints the UI.
-    /// </summary>
-    void paint(juce::Graphics& g) override;
+        /// <summary>
+        /// Destructor.
+        /// </summary>
+        ~MainComponent() override;
 
-    /// <summary>
-    /// Lays out child components.
-    /// </summary>
-    void resized() override;
+        /// <summary>
+        /// Paints the UI.
+        /// </summary>
+        void paint(juce::Graphics& g) override;
 
-private:
-    // juce::Timer
-    void timerCallback() override;
+        /// <summary>
+        /// Lays out child components.
+        /// </summary>
+        void resized() override;
 
-    // juce::ComboBox::Listener
-    void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
+    private:
+        // juce::Timer
+        void timerCallback() override;
 
-    // juce::Button::Listener
-    void buttonClicked(juce::Button* button) override;
+        // juce::ComboBox::Listener
+        void comboBoxChanged(juce::ComboBox* comboBoxThatHasChanged) override;
 
-    void refreshMetrics();
-    void applyPreset(const Preset& preset);
-    void updateStatusBar();
-    void updateUILanguage();
-    void updateVisualizationLayout();
-    void evaluateFrameBudget();
-    void configureTimerForCurrentBudget();
-    void applyAudioSettings();
-    void startAudioProcessing();
-    void stopAudioProcessing();
+        // juce::Button::Listener
+        void buttonClicked(juce::Button* button) override;
 
-    yvc::MetricsBus& metricsBus_;
-    juce::AudioDeviceManager& audioDeviceManager_;
-    std::unique_ptr<JuceAudioBridge> audioBridge_;
-    
-    yvc::AnalysisResults currentMetrics_;
-    MetricsDisplayComponent metricsDisplay_;
-    HeatmapComponent heatmapDisplay_;
-    std::unique_ptr<WaveformComponent> waveformDisplay_; // legacy mini waveform (not timeline-synced)
-    std::unique_ptr<ScrollingWaveformComponent> scrollingWaveform_; // timeline-synced time-domain view
+        void refreshMetrics();
+        void applyPreset(const Preset& preset);
+        void updateStatusBar();
+        void updateUILanguage();
+        void updateVisualizationLayout();
+        void evaluateFrameBudget();
+        void configureTimerForCurrentBudget();
+        void applyAudioSettings();
+        void startAudioProcessing();
+        void stopAudioProcessing();
 
-    PresetManager presetManager_;
-    AppSettings settings_;
+        yvc::MetricsBus& metricsBus_;
+        juce::AudioDeviceManager& audioDeviceManager_;
+        std::unique_ptr<JuceAudioBridge> audioBridge_;
 
-    // Enhanced visualization components
-    std::unique_ptr<AdvancedHeatmapComponent> advancedF0Heatmap_;
-    std::unique_ptr<AdvancedHeatmapComponent> advancedLevelHeatmap_;
-    std::unique_ptr<SpectrumAnalyzerComponent> spectrumAnalyzer_;
+        yvc::AnalysisResults currentMetrics_;
+        MetricsDisplayComponent metricsDisplay_;
+        HeatmapComponent heatmapDisplay_;
+        std::unique_ptr<WaveformComponent> waveformDisplay_; // legacy mini waveform (not timeline-synced)
+        std::unique_ptr<ScrollingWaveformComponent> scrollingWaveform_; // timeline-synced time-domain view
 
-    juce::ComboBox presetSelector_;
-    juce::TextButton settingsButton_{ "Settings" };
-    juce::Label presetDescription_;
-    juce::Label statusBar_;
-    juce::Label fpsIndicator_;
-    juce::Label degradationNotice_;
+        PresetManager presetManager_;
+        AppSettings settings_;
 
-    // Timeline controller shared across time-axis components
-    std::unique_ptr<TimelineController> timeline_;
+        // Enhanced visualization components
+        std::unique_ptr<AdvancedHeatmapComponent> advancedF0Heatmap_;
+        std::unique_ptr<AdvancedHeatmapComponent> advancedLevelHeatmap_;
+        std::unique_ptr<SpectrumAnalyzerComponent> spectrumAnalyzer_;
 
-    juce::int64 lastPaintTimestampMs_ = 0;
-    double accumulatedFrameTimeMs_ = 0.0;
-    int accumulatedFrames_ = 0;
-    double currentFps_ = 60.0;
+        juce::ComboBox presetSelector_;
+        juce::TextButton settingsButton_{ "Settings" };
+        juce::Label presetDescription_;
+        juce::Label statusBar_;
+        juce::Label fpsIndicator_;
+        juce::Label degradationNotice_;
 
-    const std::array<int, 3> frameBudgets_{ { 60, 45, 30 } };
-    size_t frameBudgetIndex_ = 0;
+        // Timeline controller shared across time-axis components
+        std::unique_ptr<TimelineController> timeline_;
 
-    juce::int64 fpsEvaluationStartMs_ = 0;
-    juce::int64 recordingStartMs_ = 0;
-    juce::int64 degradationNoticeExpiryMs_ = 0;
-};
+        juce::int64 lastPaintTimestampMs_ = 0;
+        double accumulatedFrameTimeMs_ = 0.0;
+        int accumulatedFrames_ = 0;
+        double currentFps_ = 60.0;
+
+        const std::array<int, 3> frameBudgets_{ { 60, 45, 30 } };
+        size_t frameBudgetIndex_ = 0;
+
+        juce::int64 fpsEvaluationStartMs_ = 0;
+        juce::int64 recordingStartMs_ = 0;
+        juce::int64 degradationNoticeExpiryMs_ = 0;
+    };
 
 } // namespace yvc::app

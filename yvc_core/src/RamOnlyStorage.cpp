@@ -7,7 +7,8 @@ namespace yvc {
 /// <summary>
 /// Appends raw sample block into in-memory store.
 /// </summary>
-void RamOnlyStorage::append(const Sample* samples, size_t count) {
+void RamOnlyStorage::append(const Sample* samples,
+                            size_t count) {
     if (!samples || count == 0) {
         return;
     }

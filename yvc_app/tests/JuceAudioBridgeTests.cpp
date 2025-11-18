@@ -7,207 +7,207 @@
 #include <yvc_core/Types.h>
 
 namespace yvc::app::test {
-namespace {
+    namespace {
 
-class JuceFixture : public ::testing::Test {
-protected:
-    static void SetUpTestSuite() {
-        juce_init_ = std::make_unique<juce::ScopedJuceInitialiser_GUI>();
-    }
+        class JuceFixture : public ::testing::Test {
+        protected:
+            static void SetUpTestSuite() {
+                juce_init_ = std::make_unique<juce::ScopedJuceInitialiser_GUI>();
+            }
 
-    static void TearDownTestSuite() {
-        juce_init_.reset();
-    }
+            static void TearDownTestSuite() {
+                juce_init_.reset();
+            }
 
-    static inline std::unique_ptr<juce::ScopedJuceInitialiser_GUI> juce_init_;
-};
+            static inline std::unique_ptr<juce::ScopedJuceInitialiser_GUI> juce_init_;
+        };
 
-TEST_F(JuceFixture, BridgeCreationAndDestruction) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 512;
+        TEST_F(JuceFixture, BridgeCreationAndDestruction) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 512;
 
-    auto bridge = std::make_unique<JuceAudioBridge>(bus, config);
-    EXPECT_NE(bridge, nullptr);
-    
-    auto stats = bridge->getStatistics();
-    EXPECT_EQ(stats.totalSamplesProcessed, 0u);
-    EXPECT_EQ(stats.totalCallbacks, 0u);
-    EXPECT_FALSE(stats.isRunning);
-}
+            auto bridge = std::make_unique<JuceAudioBridge>(bus, config);
+            EXPECT_NE(bridge, nullptr);
 
-TEST_F(JuceFixture, AudioCallbackProcessesSamples) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 512;
+            auto stats = bridge->getStatistics();
+            EXPECT_EQ(stats.totalSamplesProcessed, 0u);
+            EXPECT_EQ(stats.totalCallbacks, 0u);
+            EXPECT_FALSE(stats.isRunning);
+        }
 
-    JuceAudioBridge bridge(bus, config);
+        TEST_F(JuceFixture, AudioCallbackProcessesSamples) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 512;
 
-    // Simulate audio device start
-    bridge.audioDeviceAboutToStart(nullptr);
+            JuceAudioBridge bridge(bus, config);
 
-    // Prepare test audio
-    constexpr int numSamples = 512;
-    std::vector<float> inputBuffer(numSamples, 0.1f); // Quiet test signal
-    const float* inputChannels[1] = { inputBuffer.data() };
-    float* outputChannels[1] = { nullptr };
+            // Simulate audio device start
+            bridge.audioDeviceAboutToStart(nullptr);
 
-    juce::AudioIODeviceCallbackContext context;
+            // Prepare test audio
+            constexpr int numSamples = 512;
+            std::vector<float> inputBuffer(numSamples, 0.1f); // Quiet test signal
+            const float* inputChannels[1] = { inputBuffer.data() };
+            float* outputChannels[1] = { nullptr };
 
-    // Process audio callback
-    bridge.audioDeviceIOCallbackWithContext(
-        inputChannels, 1,
-        outputChannels, 0,
-        numSamples, context);
+            juce::AudioIODeviceCallbackContext context;
 
-    auto stats = bridge.getStatistics();
-    EXPECT_EQ(stats.totalSamplesProcessed, static_cast<uint64_t>(numSamples));
-    EXPECT_EQ(stats.totalCallbacks, 1u);
-    EXPECT_TRUE(stats.isRunning);
+            // Process audio callback
+            bridge.audioDeviceIOCallbackWithContext(
+                inputChannels, 1,
+                outputChannels, 0,
+                numSamples, context);
 
-    // Verify metrics were written to bus
-    yvc::AnalysisResults results;
-    // Note: May not have metrics immediately if FFT buffer not filled
-    // Just verify bus is accessible
-    EXPECT_NO_THROW(bus.getLatest());
-}
+            auto stats = bridge.getStatistics();
+            EXPECT_EQ(stats.totalSamplesProcessed, static_cast<uint64_t>(numSamples));
+            EXPECT_EQ(stats.totalCallbacks, 1u);
+            EXPECT_TRUE(stats.isRunning);
 
-TEST_F(JuceFixture, StereoToMonoConversion) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 256;
+            // Verify metrics were written to bus
+            yvc::AnalysisResults results;
+            // Note: May not have metrics immediately if FFT buffer not filled
+            // Just verify bus is accessible
+            EXPECT_NO_THROW(bus.getLatest());
+        }
 
-    JuceAudioBridge bridge(bus, config);
-    bridge.audioDeviceAboutToStart(nullptr);
+        TEST_F(JuceFixture, StereoToMonoConversion) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 256;
 
-    constexpr int numSamples = 256;
-    std::vector<float> leftChannel(numSamples, 0.5f);
-    std::vector<float> rightChannel(numSamples, -0.5f);
-    
-    const float* inputChannels[2] = { leftChannel.data(), rightChannel.data() };
-    float* outputChannels[1] = { nullptr };
+            JuceAudioBridge bridge(bus, config);
+            bridge.audioDeviceAboutToStart(nullptr);
 
-    juce::AudioIODeviceCallbackContext context;
+            constexpr int numSamples = 256;
+            std::vector<float> leftChannel(numSamples, 0.5f);
+            std::vector<float> rightChannel(numSamples, -0.5f);
 
-    bridge.audioDeviceIOCallbackWithContext(
-        inputChannels, 2,
-        outputChannels, 0,
-        numSamples, context);
+            const float* inputChannels[2] = { leftChannel.data(), rightChannel.data() };
+            float* outputChannels[1] = { nullptr };
 
-    auto stats = bridge.getStatistics();
-    EXPECT_EQ(stats.totalSamplesProcessed, static_cast<uint64_t>(numSamples));
-    EXPECT_TRUE(stats.isRunning);
-}
+            juce::AudioIODeviceCallbackContext context;
 
-TEST_F(JuceFixture, PerformanceModeSwitch) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 512;
-    config.mode = yvc::PerformanceMode::Mode_Standard;
+            bridge.audioDeviceIOCallbackWithContext(
+                inputChannels, 2,
+                outputChannels, 0,
+                numSamples, context);
 
-    JuceAudioBridge bridge(bus, config);
-    
-    EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Standard);
-    
-    bridge.setPerformanceMode(yvc::PerformanceMode::Mode_Diagnostic);
-    EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Diagnostic);
-    
-    bridge.setPerformanceMode(yvc::PerformanceMode::Mode_Light);
-    EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Light);
-}
+            auto stats = bridge.getStatistics();
+            EXPECT_EQ(stats.totalSamplesProcessed, static_cast<uint64_t>(numSamples));
+            EXPECT_TRUE(stats.isRunning);
+        }
 
-TEST_F(JuceFixture, ConfigUpdateRecreatesEngine) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config1;
-    config1.sample_rate = 48000;
-    config1.buffer_size = 512;
+        TEST_F(JuceFixture, PerformanceModeSwitch) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 512;
+            config.mode = yvc::PerformanceMode::Mode_Standard;
 
-    JuceAudioBridge bridge(bus, config1);
-    bridge.audioDeviceAboutToStart(nullptr);
+            JuceAudioBridge bridge(bus, config);
 
-    // Process some samples
-    std::vector<float> buffer(512, 0.1f);
-    const float* input[1] = { buffer.data() };
-    float* output[1] = { nullptr };
-    juce::AudioIODeviceCallbackContext ctx;
-    
-    bridge.audioDeviceIOCallbackWithContext(input, 1, output, 0, 512, ctx);
-    
-    auto stats1 = bridge.getStatistics();
-    EXPECT_GT(stats1.totalCallbacks, 0u);
+            EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Standard);
 
-    // Update config
-    yvc::AudioConfig config2;
-    config2.sample_rate = 44100;
-    config2.buffer_size = 256;
-    bridge.updateConfig(config2);
+            bridge.setPerformanceMode(yvc::PerformanceMode::Mode_Diagnostic);
+            EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Diagnostic);
 
-    // Statistics should be reset
-    auto stats2 = bridge.getStatistics();
-    EXPECT_EQ(stats2.totalSamplesProcessed, 0u);
-    EXPECT_EQ(stats2.totalCallbacks, 0u);
-}
+            bridge.setPerformanceMode(yvc::PerformanceMode::Mode_Light);
+            EXPECT_EQ(bridge.getPerformanceMode(), yvc::PerformanceMode::Mode_Light);
+        }
 
-TEST_F(JuceFixture, DeviceStopClearsRunningFlag) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 512;
+        TEST_F(JuceFixture, ConfigUpdateRecreatesEngine) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config1;
+            config1.sample_rate = 48000;
+            config1.buffer_size = 512;
 
-    JuceAudioBridge bridge(bus, config);
-    
-    bridge.audioDeviceAboutToStart(nullptr);
-    EXPECT_TRUE(bridge.getStatistics().isRunning);
-    
-    bridge.audioDeviceStopped();
-    EXPECT_FALSE(bridge.getStatistics().isRunning);
-}
+            JuceAudioBridge bridge(bus, config1);
+            bridge.audioDeviceAboutToStart(nullptr);
 
-TEST_F(JuceFixture, ErrorIncrementsXRunCounter) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 512;
+            // Process some samples
+            std::vector<float> buffer(512, 0.1f);
+            const float* input[1] = { buffer.data() };
+            float* output[1] = { nullptr };
+            juce::AudioIODeviceCallbackContext ctx;
 
-    JuceAudioBridge bridge(bus, config);
-    
-    auto stats1 = bridge.getStatistics();
-    EXPECT_EQ(stats1.xruns, 0u);
-    
-    bridge.audioDeviceError("Test error");
-    
-    auto stats2 = bridge.getStatistics();
-    EXPECT_EQ(stats2.xruns, 1u);
-}
+            bridge.audioDeviceIOCallbackWithContext(input, 1, output, 0, 512, ctx);
 
-TEST_F(JuceFixture, MultipleCallbacksAccumulateStats) {
-    yvc::MetricsBus bus;
-    yvc::AudioConfig config;
-    config.sample_rate = 48000;
-    config.buffer_size = 128;
+            auto stats1 = bridge.getStatistics();
+            EXPECT_GT(stats1.totalCallbacks, 0u);
 
-    JuceAudioBridge bridge(bus, config);
-    bridge.audioDeviceAboutToStart(nullptr);
+            // Update config
+            yvc::AudioConfig config2;
+            config2.sample_rate = 44100;
+            config2.buffer_size = 256;
+            bridge.updateConfig(config2);
 
-    std::vector<float> buffer(128, 0.1f);
-    const float* input[1] = { buffer.data() };
-    float* output[1] = { nullptr };
-    juce::AudioIODeviceCallbackContext ctx;
+            // Statistics should be reset
+            auto stats2 = bridge.getStatistics();
+            EXPECT_EQ(stats2.totalSamplesProcessed, 0u);
+            EXPECT_EQ(stats2.totalCallbacks, 0u);
+        }
 
-    // Process 10 callbacks
-    for (int i = 0; i < 10; ++i) {
-        bridge.audioDeviceIOCallbackWithContext(input, 1, output, 0, 128, ctx);
-    }
+        TEST_F(JuceFixture, DeviceStopClearsRunningFlag) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 512;
 
-    auto stats = bridge.getStatistics();
-    EXPECT_EQ(stats.totalSamplesProcessed, 128u * 10u);
-    EXPECT_EQ(stats.totalCallbacks, 10u);
-    EXPECT_GT(stats.averageLatencyMs, 0.0); // Should have measured some latency
-}
+            JuceAudioBridge bridge(bus, config);
 
-} // namespace
+            bridge.audioDeviceAboutToStart(nullptr);
+            EXPECT_TRUE(bridge.getStatistics().isRunning);
+
+            bridge.audioDeviceStopped();
+            EXPECT_FALSE(bridge.getStatistics().isRunning);
+        }
+
+        TEST_F(JuceFixture, ErrorIncrementsXRunCounter) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 512;
+
+            JuceAudioBridge bridge(bus, config);
+
+            auto stats1 = bridge.getStatistics();
+            EXPECT_EQ(stats1.xruns, 0u);
+
+            bridge.audioDeviceError("Test error");
+
+            auto stats2 = bridge.getStatistics();
+            EXPECT_EQ(stats2.xruns, 1u);
+        }
+
+        TEST_F(JuceFixture, MultipleCallbacksAccumulateStats) {
+            yvc::MetricsBus bus;
+            yvc::AudioConfig config;
+            config.sample_rate = 48000;
+            config.buffer_size = 128;
+
+            JuceAudioBridge bridge(bus, config);
+            bridge.audioDeviceAboutToStart(nullptr);
+
+            std::vector<float> buffer(128, 0.1f);
+            const float* input[1] = { buffer.data() };
+            float* output[1] = { nullptr };
+            juce::AudioIODeviceCallbackContext ctx;
+
+            // Process 10 callbacks
+            for(int i = 0; i < 10; ++i) {
+                bridge.audioDeviceIOCallbackWithContext(input, 1, output, 0, 128, ctx);
+            }
+
+            auto stats = bridge.getStatistics();
+            EXPECT_EQ(stats.totalSamplesProcessed, 128u * 10u);
+            EXPECT_EQ(stats.totalCallbacks, 10u);
+            EXPECT_GT(stats.averageLatencyMs, 0.0); // Should have measured some latency
+        }
+
+    } // namespace
 } // namespace yvc::app::test

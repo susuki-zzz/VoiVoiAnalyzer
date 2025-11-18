@@ -9,45 +9,45 @@
 
 namespace yvc::app {
 
-/// <summary>
-/// UI preset describing which metrics to display and their order.
-/// </summary>
-struct Preset {
-    juce::String nameKey;        // Localization key for preset name
-    juce::String descriptionKey; // Localization key for description
-    std::vector<MetricDisplayType> metrics;
-};
-
-/// <summary>
-/// Manages available presets and the currently active preset.
-/// </summary>
-class PresetManager {
-public:
-    PresetManager();
+    /// <summary>
+    /// UI preset describing which metrics to display and their order.
+    /// </summary>
+    struct Preset {
+        juce::String nameKey;        // Localization key for preset name
+        juce::String descriptionKey; // Localization key for description
+        std::vector<MetricDisplayType> metrics;
+    };
 
     /// <summary>
-    /// Returns all available presets.
+    /// Manages available presets and the currently active preset.
     /// </summary>
-    const std::vector<Preset>& getPresets() const noexcept { return presets_; }
+    class PresetManager {
+    public:
+        PresetManager();
 
-    /// <summary>
-    /// Returns the currently active preset.
-    /// </summary>
-    const Preset& getActivePreset() const noexcept { return presets_[activePresetIndex_]; }
+        /// <summary>
+        /// Returns all available presets.
+        /// </summary>
+        const std::vector<Preset>& getPresets() const noexcept { return presets_; }
 
-    /// <summary>
-    /// Returns index of the currently active preset.
-    /// </summary>
-    int getActivePresetIndex() const noexcept { return static_cast<int>(activePresetIndex_); }
+        /// <summary>
+        /// Returns the currently active preset.
+        /// </summary>
+        const Preset& getActivePreset() const noexcept { return presets_[activePresetIndex_]; }
 
-    /// <summary>
-    /// Sets active preset by index and returns it.
-    /// </summary>
-    const Preset& setActivePreset(size_t index);
+        /// <summary>
+        /// Returns index of the currently active preset.
+        /// </summary>
+        int getActivePresetIndex() const noexcept { return static_cast<int>(activePresetIndex_); }
 
-private:
-    std::vector<Preset> presets_;
-    size_t activePresetIndex_ = 0;
-};
+        /// <summary>
+        /// Sets active preset by index and returns it.
+        /// </summary>
+        const Preset& setActivePreset(size_t index);
+
+    private:
+        std::vector<Preset> presets_;
+        size_t activePresetIndex_ = 0;
+    };
 
 } // namespace yvc::app

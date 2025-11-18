@@ -18,164 +18,179 @@
 
 namespace yvc::app {
 
-// NOTE: Components here are lightweight painters; business logic lives in yvc_core.
-
-/// <summary>
-/// Types of metric display components.
-/// </summary>
-enum class MetricDisplayType {
-    F0Gauge,
-    CPP,
-    HNR,
-    SpectralTilt,
-    SpeechRate,
-    PauseRatio,
-    VoiceActivity,
-    RMS,
-    Peak,
-    CrestFactor,
-    SCentroid
-};
-
-/// <summary>
-/// Abstract metric component base.
-/// </summary>
-class MetricComponent : public juce::Component {
-public:
-    MetricComponent() = default;
-    ~MetricComponent() override = default;
+    // NOTE: Components here are lightweight painters; business logic lives in yvc_core.
 
     /// <summary>
-    /// Updates component with latest analysis results.
+    /// Types of metric display components.
     /// </summary>
-    virtual void update(const yvc::AnalysisResults& results) = 0;
-};
-
-/// <summary>
-/// F0 + formants gauge component.
-/// </summary>
-class F0GaugeComponent : public MetricComponent {
-public:
-    F0GaugeComponent();
-
-    void paint(juce::Graphics& g) override;
-    void resized() override;
-    void update(const yvc::AnalysisResults& results) override;
-
-private:
-    float currentF0_ = 0.0f;
-    bool valid_ = false;
-    float targetMin_ = 170.0f;
-    float targetMax_ = 230.0f;
-    // Formants
-    float f1_ = 0.0f;
-    float f2_ = 0.0f;
-    float f3_ = 0.0f;
-    float f4_ = 0.0f;
-    bool formantsValid_ = false;
-};
-
-/// <summary>
-/// Generic scalar meter component for single value metrics.
-/// </summary>
-class ScalarMeterComponent : public MetricComponent {
-public:
-    struct Options {
-        juce::String label;
-        juce::String unit;
-        float minimum = -40.0f;
-        float maximum = 40.0f;
-        float defaultValue = 0.0f;
-        bool showBaseline = true;
+    enum class MetricDisplayType {
+        F0Gauge,
+        CPP,
+        HNR,
+        SpectralTilt,
+        SpeechRate,
+        PauseRatio,
+        VoiceActivity,
+        RMS,
+        Peak,
+        CrestFactor,
+        SCentroid
     };
 
-    ScalarMeterComponent(Options opts, std::function<float(const yvc::AnalysisResults&)> getter,
-                         std::function<bool(const yvc::AnalysisResults&)> validityGetter = {});
+    /// <summary>
+    /// Abstract metric component base.
+    /// </summary>
+    class MetricComponent : public juce::Component {
+    public:
+        MetricComponent() = default;
+        ~MetricComponent() override = default;
 
-    void paint(juce::Graphics& g) override;
-    void update(const yvc::AnalysisResults& results) override;
+        /// <summary>
+        /// Updates component with latest analysis results.
+        /// </summary>
+        virtual void update(const yvc::AnalysisResults& results) = 0;
+    };
 
-private:
-    Options options_;
-    std::function<float(const yvc::AnalysisResults&)> getter_;
-    std::function<bool(const yvc::AnalysisResults&)> validityGetter_;
-    float currentValue_ = 0.0f;
-    bool isValid_ = true;
-};
+    /// <summary>
+    /// F0 + formants gauge component.
+    /// </summary>
+    class F0GaugeComponent : public MetricComponent {
+    public:
+        F0GaugeComponent();
 
-/// <summary>
-/// VAD meter component showing activity, speech rate, and pause ratio.
-/// </summary>
-class VadMeterComponent : public MetricComponent {
-public:
-    VadMeterComponent();
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+        void update(const yvc::AnalysisResults& results) override;
 
-    void paint(juce::Graphics& g) override;
-    void update(const yvc::AnalysisResults& results) override;
+    private:
+        float currentF0_ = 0.0f;
+        bool valid_ = false;
+        float targetMin_ = 170.0f;
+        float targetMax_ = 230.0f;
+        // Formants
+        float f1_ = 0.0f;
+        float f2_ = 0.0f;
+        float f3_ = 0.0f;
+        float f4_ = 0.0f;
+        bool formantsValid_ = false;
+    };
 
-private:
-    bool voiceActive_ = false;
-    float speechRate_ = 0.0f;
-    float pauseRatio_ = 0.0f;
-};
+    /// <summary>
+    /// Generic scalar meter component for single value metrics.
+    /// </summary>
+    class ScalarMeterComponent : public MetricComponent {
+    public:
+        struct Options {
+            juce::String label;
+            juce::String unit;
+            float minimum = -40.0f;
+            float maximum = 40.0f;
+            float defaultValue = 0.0f;
+            bool showBaseline = true;
+        };
 
-/// <summary>
-/// Arranges multiple metric components and updates them with live metrics.
-/// </summary>
-class MetricsDisplayComponent : public juce::Component {
-public:
-    MetricsDisplayComponent();
+        ScalarMeterComponent(Options opts,
+                             std::function<float(const yvc::AnalysisResults&)> getter,
+                             std::function<bool(const yvc::AnalysisResults&)> validityGetter = {});
 
-    void setDisplayedMetrics(const std::vector<MetricDisplayType>& types);
-    void updateMetrics(const yvc::AnalysisResults& results);
-    void resized() override;
+        void paint(juce::Graphics& g) override;
+        void update(const yvc::AnalysisResults& results) override;
 
-private:
-    std::vector<MetricDisplayType> activeTypes_;
-    std::vector<std::unique_ptr<MetricComponent>> components_;
+    private:
+        Options options_;
+        std::function<float(const yvc::AnalysisResults&)> getter_;
+        std::function<bool(const yvc::AnalysisResults&)> validityGetter_;
+        float currentValue_ = 0.0f;
+        bool isValid_ = true;
+    };
 
-    std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
-};
+    /// <summary>
+    /// VAD meter component showing activity, speech rate, and pause ratio.
+    /// </summary>
+    class VadMeterComponent : public MetricComponent {
+    public:
+        VadMeterComponent();
 
-/// <summary>
-/// Heatmap with time axis. If a TimelineController is set, X is mapped from its visibleRange.
-/// </summary>
-class HeatmapComponent : public juce::Component, public ITimelineListener {
-public:
-    enum class ScaleMode { LinearHz, LogHz, MidiNote };
+        void paint(juce::Graphics& g) override;
+        void update(const yvc::AnalysisResults& results) override;
 
-    HeatmapComponent();
+    private:
+        bool voiceActive_ = false;
+        float speechRate_ = 0.0f;
+        float pauseRatio_ = 0.0f;
+    };
 
-    void appendSample(const yvc::AnalysisResults& results);
-    void paint(juce::Graphics& g) override;
-    void resized() override;
+    /// <summary>
+    /// Arranges multiple metric components and updates them with live metrics.
+    /// </summary>
+    class MetricsDisplayComponent : public juce::Component {
+    public:
+        MetricsDisplayComponent();
 
-    void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
-    void setScaleMode(ScaleMode mode) { scaleMode_ = mode; repaint(); }
+        void setDisplayedMetrics(const std::vector<MetricDisplayType>& types);
+        void updateMetrics(const yvc::AnalysisResults& results);
+        void resized() override;
 
-    // Timeline wiring
-    void setTimelineController(TimelineController* ctl) { timeline_ = ctl; if(timeline_) timeline_->addListener(this); }
-    void timelineRangeChanged(const juce::Range<double>&) override { repaint(); }
-    void timelinePlayheadChanged(double) override { repaint(); }
+    private:
+        std::vector<MetricDisplayType> activeTypes_;
+        std::vector<std::unique_ptr<MetricComponent>> components_;
 
-private:
-    void drawHeatmap(juce::Graphics& g, juce::Rectangle<float> area, const std::deque<float>& samples,
-                     const std::deque<double>& times, float minValue, float maxValue, const juce::String& label, const juce::String& unit);
-    float mapFrequencyToY(float freq, float minFreq, float maxFreq, float height) const;
-    juce::String formatAxisLabel(float freq) const;
+        std::unique_ptr<MetricComponent> createComponentFor(MetricDisplayType type);
+    };
 
-    std::deque<double> timeHistory_;
-    std::deque<float> f0History_;
-    std::deque<float> f0ConfHistory_;
-    std::deque<float> rmsHistory_;
-    std::deque<float> f1History_;
-    std::deque<float> f2History_;
-    std::deque<float> f3History_;
-    std::deque<float> f4History_;
-    int maxSamples_ = 180;
-    ScaleMode scaleMode_ = ScaleMode::LinearHz;
+    /// <summary>
+    /// Heatmap with time axis. If a TimelineController is set, X is mapped from its visibleRange.
+    /// </summary>
+    class HeatmapComponent :
+        public juce::Component,
+        public ITimelineListener
+    {
+    public:
+        enum class ScaleMode { LinearHz, LogHz, MidiNote };
 
-    TimelineController* timeline_ = nullptr;
-};
+        HeatmapComponent();
+
+        void appendSample(const yvc::AnalysisResults& results);
+        void paint(juce::Graphics& g) override;
+        void resized() override;
+
+        void setMaxSamples(int samples) { maxSamples_ = juce::jmax(4, samples); }
+        void setScaleMode(ScaleMode mode) { scaleMode_ = mode; repaint(); }
+
+        // Timeline wiring
+        void setTimelineController(TimelineController* ctl) {
+            timeline_ = ctl;
+            if(timeline_) timeline_->addListener(this);
+        }
+        void timelineRangeChanged(const juce::Range<double>&) override { repaint(); }
+        void timelinePlayheadChanged(double) override { repaint(); }
+
+    private:
+        void drawHeatmap(juce::Graphics& g,
+                         juce::Rectangle<float> area,
+                         const std::deque<float>& samples,
+                         const std::deque<double>& times,
+                         float minValue, float maxValue,
+                         const juce::String& label,
+                         const juce::String& unit);
+        float mapFrequencyToY(float freq,
+                              float minFreq,
+                              float maxFreq,
+                              float height) const;
+        juce::String formatAxisLabel(float freq) const;
+
+        std::deque<double> timeHistory_;
+        std::deque<float> f0History_;
+        std::deque<float> f0ConfHistory_;
+        std::deque<float> rmsHistory_;
+        std::deque<float> f1History_;
+        std::deque<float> f2History_;
+        std::deque<float> f3History_;
+        std::deque<float> f4History_;
+        int maxSamples_ = 180;
+        ScaleMode scaleMode_ = ScaleMode::LinearHz;
+
+        TimelineController* timeline_ = nullptr;
+    };
 
 } // namespace yvc::app
